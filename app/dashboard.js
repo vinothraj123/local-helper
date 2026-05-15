@@ -1894,7 +1894,7 @@ export default function Dashboard() {
                 <View style={styles.livePulse}>
                   <View style={styles.liveDotInner} />
                 </View>
-                <Text style={styles.heroLabel}>LIVE ATTENDANCE</Text>
+                <Text style={styles.heroLabel}>LI</Text>
                 {isTimeFiltered && (
                   <TouchableOpacity
                     style={styles.timeFilterBadge}
