@@ -239,7 +239,7 @@ function TimeRangePickerModal({
               placeholderTextColor="#94a3b8"
               maxLength={5}
               // keyboardType="numeric"
-              keyboardType="numbers-and-punctuation"
+              keyboardType="default"
               returnKeyType="next"
             />
           )}
@@ -280,7 +280,7 @@ function TimeRangePickerModal({
               placeholderTextColor="#94a3b8"
               maxLength={5}
               // keyboardType="numeric"
-              keyboardType="numbers-and-punctuation"
+              keyboardType="default"
               returnKeyType="done"
             />
           )}
@@ -1894,7 +1894,7 @@ export default function Dashboard() {
                 <View style={styles.livePulse}>
                   <View style={styles.liveDotInner} />
                 </View>
-                <Text style={styles.heroLabel}>LI</Text>
+                <Text style={styles.heroLabel}>LIVE </Text>
                 {isTimeFiltered && (
                   <TouchableOpacity
                     style={styles.timeFilterBadge}
