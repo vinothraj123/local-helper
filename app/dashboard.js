@@ -238,7 +238,8 @@ function TimeRangePickerModal({
               placeholder="06:00"
               placeholderTextColor="#94a3b8"
               maxLength={5}
-              keyboardType="numeric"
+              // keyboardType="numeric"
+              keyboardType="numbers-and-punctuation"
               returnKeyType="next"
             />
           )}
@@ -278,7 +279,8 @@ function TimeRangePickerModal({
               placeholder="09:00"
               placeholderTextColor="#94a3b8"
               maxLength={5}
-              keyboardType="numeric"
+              // keyboardType="numeric"
+              keyboardType="numbers-and-punctuation"
               returnKeyType="done"
             />
           )}
