@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "ANIN Cricket Academy",
+    "platforms": ["ios", "android", "web"],
+    "slug": "anin-cricket-academy",
+    "version": "1.0.8",
+    "orientation": "portrait",
+    "icon": "./assets/images/lend.png",
+    "scheme": "anincricket",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anincricket.academy"
+    },
+    "android": {
+      "package": "com.anincricket.academy",
+      "softwareKeyboardLayoutMode": "resize",
+      "versionCode": 8,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/lend.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": ["android.permission.INTERNET"]
+    },
+
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/lend.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/lend.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "550bf614-9a0d-475c-86e4-bb80a1f5d24c"
+      },
+      "router": {}
+    },
+    "owner": ""
+  }
+}
