@@ -19,13 +19,12 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import axios from "../axios";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 const showAlert = (title, message, buttons) => {
   if (Platform.OS === "web") {
@@ -49,44 +48,374 @@ const showAlert = (title, message, buttons) => {
 };
 
 // ============================================================
-// ✅ WEB TIME INPUT — manual HH:MM text (no native picker popup)
+// ✅ DRUM SCROLL PICKER (Native only)
 // ============================================================
-function WebTimeInput({ value, onChange, accentColor = "#6366f1" }) {
-  // Format as user types: auto-insert colon after 2 digits
-  const handleChange = (e) => {
-    let v = e.target.value.replace(/[^0-9]/g, ""); // digits only
-    if (v.length > 4) v = v.slice(0, 4);
-    if (v.length >= 3) v = v.slice(0, 2) + ":" + v.slice(2);
-    onChange(v);
+const ITEM_HEIGHT = 48;
+const VISIBLE_ITEMS = 5;
+const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+
+function DrumPicker({ values, selected, onChange, pickerWidth = 80 }) {
+  const scrollRef = useRef(null);
+  const selectedIndex = values.indexOf(selected);
+
+  useEffect(() => {
+    if (scrollRef.current && selectedIndex >= 0) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({
+          y: selectedIndex * ITEM_HEIGHT,
+          animated: false,
+        });
+      }, 80);
+    }
+  }, []);
+
+  const handleMomentumEnd = (e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(index, values.length - 1));
+    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
+    onChange(values[clamped]);
+  };
+
+  const handleScroll = (e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(index, values.length - 1));
+    if (values[clamped] !== selected) onChange(values[clamped]);
   };
 
   return (
-    <input
-      type="text"
-      value={value}
-      onChange={handleChange}
-      placeholder="HH:MM"
-      maxLength={5}
-      onClick={(e) => e.stopPropagation()}
-      onFocus={(e) => e.stopPropagation()}
+    <View style={[drum.container, { width: pickerWidth }]}>
+      <View style={drum.selectorHighlight} pointerEvents="none" />
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleMomentumEnd}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
+      >
+        {values.map((val, i) => {
+          const isSelected = val === selected;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[drum.item, { height: ITEM_HEIGHT }]}
+              onPress={() => {
+                scrollRef.current?.scrollTo({
+                  y: i * ITEM_HEIGHT,
+                  animated: true,
+                });
+                onChange(val);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[drum.itemText, isSelected && drum.itemTextSelected]}
+              >
+                {val}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const drum = StyleSheet.create({
+  container: {
+    height: PICKER_HEIGHT,
+    overflow: "hidden",
+    position: "relative",
+  },
+  selectorHighlight: {
+    position: "absolute",
+    top: ITEM_HEIGHT * 2,
+    left: 0,
+    right: 0,
+    height: ITEM_HEIGHT,
+    borderTopWidth: 1.5,
+    borderBottomWidth: 1.5,
+    borderColor: "#6366f1",
+    zIndex: 10,
+    borderRadius: 0,
+  },
+  item: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  itemText: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#cbd5e1",
+    letterSpacing: 1,
+  },
+  itemTextSelected: {
+    color: "#0f172a",
+    fontWeight: "900",
+    fontSize: 26,
+  },
+});
+
+// ── Native Time Picker Block ──────────────────────────────────
+function NativeTimePicker({ label, color, time, onChangeTime }) {
+  const hours = Array.from({ length: 24 }, (_, i) =>
+    String(i).padStart(2, "0"),
+  );
+  const minutes = Array.from({ length: 60 }, (_, i) =>
+    String(i).padStart(2, "0"),
+  );
+  const [h, m] = time ? time.split(":") : ["06", "00"];
+  const pickerW = Math.floor((width - 96) / 2 - 28);
+
+  return (
+    <View style={ntp.wrapper}>
+      <View style={[ntp.labelRow, { borderLeftColor: color }]}>
+        <Text style={[ntp.label, { color }]}>{label}</Text>
+        <Text style={ntp.timeDisplay}>
+          {h}:{m}
+        </Text>
+      </View>
+      <View style={ntp.pickerRow}>
+        <DrumPicker
+          values={hours}
+          selected={h}
+          onChange={(val) => onChangeTime(`${val}:${m}`)}
+          pickerWidth={pickerW}
+        />
+        <Text style={ntp.colon}>:</Text>
+        <DrumPicker
+          values={minutes}
+          selected={m}
+          onChange={(val) => onChangeTime(`${h}:${val}`)}
+          pickerWidth={pickerW}
+        />
+      </View>
+    </View>
+  );
+}
+
+const ntp = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+    paddingLeft: 8,
+    borderLeftWidth: 3,
+  },
+  label: { fontSize: 10, fontWeight: "900", letterSpacing: 1.5 },
+  timeDisplay: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#1e293b",
+    letterSpacing: 1,
+  },
+  pickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  colon: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#e2e8f0",
+    marginHorizontal: 4,
+    marginBottom: 4,
+  },
+});
+
+// ── Web Time Picker ───────────────────────────────────────────
+function WebTimePicker({ label, color, time, onChangeTime }) {
+  const [h, m] = time ? time.split(":") : ["", ""];
+
+  const handleH = (e) => {
+    let v = e.target.value.replace(/\D/g, "").slice(0, 2);
+    if (v !== "" && parseInt(v) > 23) v = "23";
+    onChangeTime(`${v.padStart(2, "0")}:${m || "00"}`);
+  };
+  const handleM = (e) => {
+    let v = e.target.value.replace(/\D/g, "").slice(0, 2);
+    if (v !== "" && parseInt(v) > 59) v = "59";
+    onChangeTime(`${h || "00"}:${v.padStart(2, "0")}`);
+  };
+
+  const inputStyle = {
+    width: 48,
+    height: 48,
+    fontSize: 22,
+    fontWeight: 900,
+    color: "#0f172a",
+    textAlign: "center",
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    letterSpacing: 1,
+    borderRadius: 10,
+    cursor: "text",
+    WebkitAppearance: "none",
+    MozAppearance: "textfield",
+  };
+
+  return (
+    <div
       style={{
         flex: 1,
-        fontSize: 15,
-        fontWeight: 800,
-        color: "#0f172a",
-        border: "none",
-        outline: "none",
-        background: "transparent",
-        cursor: "text",
-        minWidth: 0,
-        width: "100%",
+        backgroundColor: "#f8fafc",
+        borderRadius: 20,
+        padding: 12,
+        border: "1px solid #e2e8f0",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
       }}
-    />
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderLeft: `3px solid ${color}`,
+          paddingLeft: 8,
+        }}
+      >
+        <span
+          style={{ fontSize: 10, fontWeight: 900, color, letterSpacing: 1.5 }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 900,
+            color: "#1e293b",
+            letterSpacing: 1,
+          }}
+        >
+          {h || "--"}:{m || "--"}
+        </span>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#fff",
+          borderRadius: 14,
+          border: "1px solid #e2e8f0",
+          padding: "6px 8px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9,
+              color: "#94a3b8",
+              fontWeight: 700,
+              letterSpacing: 1,
+            }}
+          >
+            HH
+          </span>
+          <input
+            type="number"
+            min="0"
+            max="23"
+            value={h}
+            onChange={handleH}
+            placeholder="--"
+            style={inputStyle}
+          />
+        </div>
+        <span
+          style={{
+            fontSize: 26,
+            fontWeight: 900,
+            color: "#e2e8f0",
+            margin: "0 2px",
+            paddingBottom: 4,
+          }}
+        >
+          :
+        </span>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9,
+              color: "#94a3b8",
+              fontWeight: 700,
+              letterSpacing: 1,
+            }}
+          >
+            MM
+          </span>
+          <input
+            type="number"
+            min="0"
+            max="59"
+            value={m}
+            onChange={handleM}
+            placeholder="--"
+            style={inputStyle}
+          />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {["00", "15", "30", "45"].map((min) => (
+          <button
+            key={min}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChangeTime(`${h || "06"}:${min}`);
+            }}
+            style={{
+              flex: 1,
+              padding: "5px 0",
+              fontSize: 10,
+              fontWeight: 800,
+              color: m === min ? "#fff" : "#64748b",
+              backgroundColor: m === min ? color : "#f1f5f9",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            :{min}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
 // ============================================================
-// ✅ TIME RANGE PICKER MODAL — FIXED (no auto-close on input touch)
+// ✅ TIME RANGE PICKER MODAL — FULLY RESPONSIVE
 // ============================================================
 function TimeRangePickerModal({
   visible,
@@ -96,35 +425,48 @@ function TimeRangePickerModal({
   onClear,
   onClose,
 }) {
-  const [localFrom, setLocalFrom] = useState(fromTime || "");
-  const [localTo, setLocalTo] = useState(toTime || "");
+  const [localFrom, setLocalFrom] = useState(fromTime || "06:00");
+  const [localTo, setLocalTo] = useState(toTime || "09:00");
   const [error, setError] = useState("");
+  const slideAnim = useRef(new Animated.Value(height)).current;
 
   useEffect(() => {
     if (visible) {
-      setLocalFrom(fromTime || "");
-      setLocalTo(toTime || "");
+      setLocalFrom(fromTime || "06:00");
+      setLocalTo(toTime || "09:00");
       setError("");
+      if (Platform.OS !== "web") {
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else {
+      if (Platform.OS !== "web") {
+        Animated.timing(slideAnim, {
+          toValue: height,
+          duration: 220,
+          useNativeDriver: true,
+        }).start();
+      }
     }
   }, [visible]);
 
   const validate = (val) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(val);
 
   const handleApply = () => {
-    if (!localFrom || !localTo) {
-      setError("From & To time இரண்டும் select பண்ணுங்க");
-      return;
-    }
     if (!validate(localFrom)) {
-      setError("From time format: HH:MM");
+      setError("From time சரியாக இல்ல (HH:MM)");
       return;
     }
     if (!validate(localTo)) {
-      setError("To time format: HH:MM");
+      setError("To time சரியாக இல்ல (HH:MM)");
       return;
     }
     if (localFrom >= localTo) {
-      setError("From time < To time ஆக இருக்கணும்");
+      setError("From time, To time-ஐ விட குறைவாக இருக்கணும்");
       return;
     }
     setError("");
@@ -133,27 +475,37 @@ function TimeRangePickerModal({
   };
 
   const handleClear = () => {
-    setLocalFrom("");
-    setLocalTo("");
+    setLocalFrom("06:00");
+    setLocalTo("09:00");
     setError("");
     onClear();
     onClose();
   };
 
   const presets = [
-    { label: "Morning", from: "05:00", to: "09:00" },
-    { label: "Afternoon", from: "09:00", to: "13:00" },
-    { label: "Evening", from: "15:00", to: "20:00" },
+    { label: "Morning", from: "05:00", to: "09:00", icon: "sunny-outline" },
+    {
+      label: "Afternoon",
+      from: "09:00",
+      to: "13:00",
+      icon: "partly-sunny-outline",
+    },
+    { label: "Evening", from: "15:00", to: "20:00", icon: "moon-outline" },
   ];
 
-  const Content = () => (
-    <View style={trp.box}>
+  const SheetContent = () => (
+    <View style={trp.sheet}>
+      <View style={trp.handle} />
+
       {/* Header */}
       <View style={trp.header}>
         <View style={trp.headerLeft}>
-          <View style={trp.iconBadge}>
-            <Ionicons name="time" size={18} color="#6366f1" />
-          </View>
+          <LinearGradient
+            colors={["#6366f1", "#4f46e5"]}
+            style={trp.headerIcon}
+          >
+            <Ionicons name="time" size={18} color="#fff" />
+          </LinearGradient>
           <View>
             <Text style={trp.title}>Time Filter</Text>
             <Text style={trp.subtitle}>
@@ -165,128 +517,106 @@ function TimeRangePickerModal({
           <Ionicons name="close" size={16} color="#ef4444" />
         </TouchableOpacity>
       </View>
+
       <View style={trp.divider} />
 
-      {/* Quick Presets */}
-      <Text style={trp.sectionLabel}>Quick Presets</Text>
+      {/* Presets */}
+      <Text style={trp.sectionLabel}>QUICK PRESETS</Text>
       <View style={trp.presetRow}>
-        {presets.map((p) => (
-          <TouchableOpacity
-            key={p.label}
-            style={[
-              trp.presetChip,
-              localFrom === p.from && localTo === p.to && trp.presetChipActive,
-            ]}
-            onPress={() => {
-              setLocalFrom(p.from);
-              setLocalTo(p.to);
-              setError("");
-            }}
-          >
-            <Text
-              style={[
-                trp.presetChipText,
-                localFrom === p.from &&
-                  localTo === p.to &&
-                  trp.presetChipTextActive,
-              ]}
+        {presets.map((p) => {
+          const active = localFrom === p.from && localTo === p.to;
+          return (
+            <TouchableOpacity
+              key={p.label}
+              style={[trp.preset, active && trp.presetActive]}
+              onPress={() => {
+                setLocalFrom(p.from);
+                setLocalTo(p.to);
+                setError("");
+              }}
             >
-              {p.label}
-            </Text>
-            <Text
-              style={[
-                trp.presetChipTime,
-                localFrom === p.from &&
-                  localTo === p.to && { color: "#c7d2fe" },
-              ]}
-            >
-              {p.from}–{p.to}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Ionicons
+                name={p.icon}
+                size={15}
+                color={active ? "#fff" : "#6366f1"}
+              />
+              <Text style={[trp.presetLabel, active && trp.presetLabelActive]}>
+                {p.label}
+              </Text>
+              <Text style={[trp.presetTime, active && { color: "#c7d2fe" }]}>
+                {p.from}–{p.to}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Time Inputs */}
-      <Text style={trp.sectionLabel}>Manual Entry</Text>
-      <View style={trp.inputRow}>
-        {/* FROM */}
-        <View style={trp.inputWrap}>
-          <Ionicons
-            name="play-forward"
-            size={13}
-            color="#6366f1"
-            style={{ marginRight: 5 }}
-          />
-          <Text style={trp.inputLabel}>FROM</Text>
-          {Platform.OS === "web" ? (
-            <WebTimeInput
-              value={localFrom}
-              onChange={(v) => {
+      {/* Pickers */}
+      <Text style={[trp.sectionLabel, { marginTop: 18 }]}>
+        {Platform.OS === "web" ? "ENTER TIME" : "SCROLL TO SELECT"}
+      </Text>
+
+      <View style={trp.pickersRow}>
+        {Platform.OS === "web" ? (
+          <>
+            <WebTimePicker
+              label="FROM"
+              color="#6366f1"
+              time={localFrom}
+              onChangeTime={(v) => {
                 setLocalFrom(v);
                 setError("");
               }}
-              accentColor="#6366f1"
             />
-          ) : (
-            <TextInput
-              style={trp.input}
-              value={localFrom}
-              onChangeText={(v) => {
+            <View style={trp.arrowWrap}>
+              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
+            </View>
+            <WebTimePicker
+              label="TO"
+              color="#f59e0b"
+              time={localTo}
+              onChangeTime={(v) => {
+                setLocalTo(v);
+                setError("");
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <NativeTimePicker
+              label="FROM"
+              color="#6366f1"
+              time={localFrom}
+              onChangeTime={(v) => {
                 setLocalFrom(v);
                 setError("");
               }}
-              placeholder="06:00"
-              placeholderTextColor="#94a3b8"
-              maxLength={5}
-              // keyboardType="numeric"
-              keyboardType="default"
-              returnKeyType="next"
             />
-          )}
-        </View>
-        <Ionicons
-          name="arrow-forward"
-          size={14}
-          color="#6366f1"
-          style={{ marginHorizontal: 4 }}
-        />
-        {/* TO */}
-        <View style={trp.inputWrap}>
-          <Ionicons
-            name="play-back"
-            size={13}
-            color="#f59e0b"
-            style={{ marginRight: 5 }}
-          />
-          <Text style={[trp.inputLabel, { color: "#f59e0b" }]}>TO</Text>
-          {Platform.OS === "web" ? (
-            <WebTimeInput
-              value={localTo}
-              onChange={(v) => {
+            <View style={trp.arrowWrap}>
+              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
+            </View>
+            <NativeTimePicker
+              label="TO"
+              color="#f59e0b"
+              time={localTo}
+              onChangeTime={(v) => {
                 setLocalTo(v);
                 setError("");
               }}
-              accentColor="#f59e0b"
             />
-          ) : (
-            <TextInput
-              style={trp.input}
-              value={localTo}
-              onChangeText={(v) => {
-                setLocalTo(v);
-                setError("");
-              }}
-              placeholder="09:00"
-              placeholderTextColor="#94a3b8"
-              maxLength={5}
-              // keyboardType="numeric"
-              keyboardType="default"
-              returnKeyType="done"
-            />
-          )}
-        </View>
+          </>
+        )}
       </View>
 
+      {/* Preview */}
+      <View style={trp.preview}>
+        <Ionicons name="time-outline" size={14} color="#6366f1" />
+        <Text style={trp.previewText}>
+          {localFrom} → {localTo}
+        </Text>
+      </View>
+
+      {/* Error */}
       {error ? (
         <View style={trp.errorRow}>
           <Ionicons name="alert-circle" size={13} color="#ef4444" />
@@ -300,20 +630,17 @@ function TimeRangePickerModal({
           <Ionicons name="refresh" size={14} color="#64748b" />
           <Text style={trp.clearBtnText}>Clear</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={trp.applyBtn} onPress={handleApply}>
-          <LinearGradient
-            colors={["#6366f1", "#4f46e5"]}
-            style={trp.applyBtnGrad}
-          >
-            <Ionicons name="checkmark" size={14} color="#fff" />
-            <Text style={trp.applyBtnText}>Apply</Text>
+        <TouchableOpacity style={trp.applyBtnWrap} onPress={handleApply}>
+          <LinearGradient colors={["#6366f1", "#4f46e5"]} style={trp.applyBtn}>
+            <Ionicons name="checkmark-circle" size={16} color="#fff" />
+            <Text style={trp.applyBtnText}>Apply Filter</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  // ── WEB: position fixed — stopPropagation fix ─────────────────────────────
+  // WEB
   if (Platform.OS === "web") {
     if (!visible) return null;
     return (
@@ -324,47 +651,53 @@ function TimeRangePickerModal({
           zIndex: 9999,
           backgroundColor: "rgba(2,6,23,0.72)",
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-end",
           justifyContent: "center",
         }}
-        onMouseDown={onClose} // ✅ background mousedown = close
+        onMouseDown={onClose}
       >
         <div
-          style={{ position: "relative", zIndex: 10000 }}
-          onMouseDown={(e) => e.stopPropagation()} // ✅ content mousedown = stay open
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            zIndex: 10000,
+            borderRadius: "34px 34px 0 0",
+            overflow: "hidden",
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <Content />
+          <SheetContent />
         </div>
       </div>
     );
   }
 
-  // ── NATIVE: absoluteFill overlay + pointerEvents fix ─────────────────────
+  // NATIVE
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
       >
-        {/* ✅ Overlay background — tap to close */}
         <View style={trp.overlay}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={onClose}
           />
-          {/* ✅ Content — pointerEvents so inputs work without bubbling close */}
-          <View pointerEvents="box-none">
-            <Content />
-          </View>
+          <Animated.View
+            style={{ transform: [{ translateY: slideAnim }], width: "100%" }}
+            pointerEvents="box-none"
+          >
+            <SheetContent />
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -375,122 +708,128 @@ const trp = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(2,6,23,0.72)",
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: "flex-end",
   },
-  box: {
+  sheet: {
     backgroundColor: "#fff",
-    borderRadius: 28,
-    padding: 22,
-    width: width - 48,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 20,
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    padding: 24,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
+  },
+  handle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#e2e8f0",
+    alignSelf: "center",
+    marginBottom: 20,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  iconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: "#ede9fe",
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
   },
-  title: { fontSize: 16, fontWeight: "900", color: "#0f172a" },
-  subtitle: { fontSize: 10, color: "#94a3b8", fontWeight: "600", marginTop: 1 },
+  title: { fontSize: 18, fontWeight: "900", color: "#0f172a" },
+  subtitle: { fontSize: 10, color: "#94a3b8", fontWeight: "600", marginTop: 2 },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     backgroundColor: "#fef2f2",
     justifyContent: "center",
     alignItems: "center",
   },
-  divider: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 16 },
+  divider: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 18 },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "800",
-    color: "#94a3b8",
-    letterSpacing: 1,
-    marginBottom: 8,
+    color: "#cbd5e1",
+    letterSpacing: 1.5,
+    marginBottom: 10,
   },
-  presetRow: { flexDirection: "row", gap: 8, marginBottom: 18 },
-  presetChip: {
+  presetRow: { flexDirection: "row", gap: 8 },
+  preset: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 4,
+    borderRadius: 16,
     backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#e2e8f0",
     alignItems: "center",
+    gap: 3,
   },
-  presetChipActive: { backgroundColor: "#4f46e5", borderColor: "#4f46e5" },
-  presetChipText: { fontSize: 11, fontWeight: "800", color: "#1e293b" },
-  presetChipTextActive: { color: "#fff" },
-  presetChipTime: {
-    fontSize: 9,
-    color: "#94a3b8",
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  inputRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  inputWrap: {
-    flex: 1,
+  presetActive: { backgroundColor: "#4f46e5", borderColor: "#4f46e5" },
+  presetLabel: { fontSize: 11, fontWeight: "800", color: "#1e293b" },
+  presetLabelActive: { color: "#fff" },
+  presetTime: { fontSize: 9, color: "#94a3b8", fontWeight: "600" },
+  pickersRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+  },
+  arrowWrap: {
+    width: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  preview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#ede9fe",
     borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 14,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    paddingHorizontal: 10,
-    paddingVertical: 11,
+    borderColor: "#c7d2fe",
   },
-  inputLabel: {
-    fontSize: 9,
+  previewText: {
+    fontSize: 14,
     fontWeight: "900",
-    color: "#6366f1",
-    marginRight: 5,
-    letterSpacing: 0.5,
+    color: "#4f46e5",
+    letterSpacing: 1,
   },
-  input: { flex: 1, fontSize: 15, fontWeight: "800", color: "#0f172a" },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginBottom: 12,
+    gap: 6,
+    marginTop: 10,
   },
   errorText: { fontSize: 11, color: "#ef4444", fontWeight: "600" },
-  btnRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  btnRow: { flexDirection: "row", gap: 10, marginTop: 16 },
   clearBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 13,
-    borderRadius: 16,
+    paddingVertical: 14,
+    borderRadius: 18,
     backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
   clearBtnText: { fontSize: 13, fontWeight: "700", color: "#64748b" },
-  applyBtn: { flex: 1, borderRadius: 16, overflow: "hidden" },
-  applyBtnGrad: {
+  applyBtnWrap: { flex: 2, borderRadius: 18, overflow: "hidden" },
+  applyBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 13,
+    gap: 8,
+    paddingVertical: 14,
   },
-  applyBtnText: { fontSize: 13, fontWeight: "800", color: "#fff" },
+  applyBtnText: { fontSize: 14, fontWeight: "900", color: "#fff" },
 });
 
 // ============================================================
@@ -1761,7 +2100,7 @@ export default function Dashboard() {
       <StatusBar barStyle="light-content" />
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* ✅ Time Filter Modal — FIXED */}
+      {/* ✅ NEW RESPONSIVE TIME FILTER MODAL */}
       <TimeRangePickerModal
         visible={showTimeFilter}
         fromTime={fromTime}
@@ -1894,7 +2233,7 @@ export default function Dashboard() {
                 <View style={styles.livePulse}>
                   <View style={styles.liveDotInner} />
                 </View>
-                <Text style={styles.heroLabel}>LIVE </Text>
+                <Text style={styles.heroLabel}>LIVE ATTENDANCE</Text>
                 {isTimeFiltered && (
                   <TouchableOpacity
                     style={styles.timeFilterBadge}
