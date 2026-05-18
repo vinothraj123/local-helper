@@ -3489,52 +3489,212 @@ const ntp = StyleSheet.create({
   mPresetText: { fontSize: 10, fontWeight: "800", color: "#64748b" },
 });
 
-// ── Web Time Picker ───────────────────────────────────────────
-function WebTimePicker({ label, color, time, onChangeTime }) {
-  const [h, m] = time ? time.split(":") : ["", ""];
+// ============================================================
+// ✅ CLOCK FACE PICKER — No keyboard, works on ALL devices
+// ============================================================
+function ClockPicker({ mode, value, color, onChange }) {
+  // mode: "hour" (0-23) or "minute" (0-59)
+  const isHour = mode === "hour";
+  const count = isHour ? 12 : 12; // show 12 numbers on face
+  const size = 200;
+  const center = size / 2;
+  const radius = 76;
+  const innerRadius = 50; // for 13-23 hours
 
-  const stop = (e) => {
+  const currentVal = parseInt(value, 10);
+
+  const getAngle = (val) => {
+    if (isHour) {
+      const h = val % 12;
+      return (h / 12) * 2 * Math.PI - Math.PI / 2;
+    } else {
+      return (val / 60) * 2 * Math.PI - Math.PI / 2;
+    }
+  };
+
+  const handleTouchOrClick = (e) => {
     e.stopPropagation();
-    // Also prevent the event reaching the backdrop
-    if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation?.();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = clientX - rect.left - center;
+    const y = clientY - rect.top - center;
+    const angle = Math.atan2(y, x) + Math.PI / 2;
+    const normalAngle = (angle + 2 * Math.PI) % (2 * Math.PI);
+
+    if (isHour) {
+      const dist = Math.sqrt(x * x + y * y);
+      let hour = Math.round((normalAngle / (2 * Math.PI)) * 12);
+      if (hour === 0) hour = 12;
+      // inner ring = 13-23, outer = 1-12 / 0
+      if (dist < center - 30) {
+        // inner: 13-00
+        if (hour === 12) hour = 0;
+        else hour += 12;
+      }
+      onChange(String(hour).padStart(2, "0"));
+    } else {
+      let min = Math.round((normalAngle / (2 * Math.PI)) * 60);
+      if (min === 60) min = 0;
+      onChange(String(min).padStart(2, "0"));
+    }
   };
 
-  const handleH = (e) => {
-    let v = e.target.value.replace(/\D/g, "").slice(0, 2);
-    if (v !== "" && parseInt(v) > 23) v = "23";
-    onChangeTime(`${v.padStart(2, "0")}:${m || "00"}`);
-  };
-  const handleM = (e) => {
-    let v = e.target.value.replace(/\D/g, "").slice(0, 2);
-    if (v !== "" && parseInt(v) > 59) v = "59";
-    onChangeTime(`${h || "00"}:${v.padStart(2, "0")}`);
-  };
+  // Hand position
+  const handAngle = getAngle(currentVal);
+  const handX =
+    center +
+    Math.cos(handAngle) *
+      (isHour && currentVal >= 13 ? innerRadius : radius - 12);
+  const handY =
+    center +
+    Math.sin(handAngle) *
+      (isHour && currentVal >= 13 ? innerRadius : radius - 12);
 
-  const inputStyle = {
-    width: 48,
-    height: 48,
-    fontSize: 22,
-    fontWeight: 900,
-    color: "#0f172a",
-    textAlign: "center",
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    letterSpacing: 1,
-    borderRadius: 10,
-    cursor: "text",
-    WebkitAppearance: "none",
-    MozAppearance: "textfield",
-    // Prevent iOS zoom on focus
-    fontSize: "22px",
-    touchAction: "manipulation",
-  };
+  // Outer numbers (1-12 for hour, 5,10..60 for minute)
+  const outerNums = isHour
+    ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    : [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((n) => (n % 12) * 5);
 
-  // Prevent ALL touch/mouse events from reaching backdrop
-  const blockAll = (e) => {
-    e.stopPropagation();
-    e.preventDefault && e.type === "touchstart" ? null : null;
-  };
+  // Inner numbers for hour (13-00)
+  const innerNums = isHour
+    ? [0, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    : [];
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: size,
+        height: size,
+        flexShrink: 0,
+        userSelect: "none",
+      }}
+      onClick={handleTouchOrClick}
+      onTouchStart={(e) => {
+        e.stopPropagation();
+        handleTouchOrClick(e);
+      }}
+      onTouchMove={(e) => {
+        e.stopPropagation();
+        handleTouchOrClick(e);
+      }}
+    >
+      {/* Clock face */}
+      <svg
+        width={size}
+        height={size}
+        style={{ position: "absolute", top: 0, left: 0 }}
+      >
+        {/* Background circle */}
+        <circle cx={center} cy={center} r={center - 4} fill="#f1f5f9" />
+        {/* Inner ring separator (hour only) */}
+        {isHour && (
+          <circle
+            cx={center}
+            cy={center}
+            r={innerRadius + 12}
+            fill="#e2e8f0"
+            fillOpacity="0.5"
+          />
+        )}
+        {/* Hand line */}
+        <line
+          x1={center}
+          y1={center}
+          x2={handX}
+          y2={handY}
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+        {/* Center dot */}
+        <circle cx={center} cy={center} r={4} fill={color} />
+        {/* Hand tip */}
+        <circle cx={handX} cy={handY} r={10} fill={color} />
+      </svg>
+
+      {/* Outer numbers */}
+      {outerNums.map((num, i) => {
+        const angle = (i / 12) * 2 * Math.PI - Math.PI / 2;
+        const x = center + Math.cos(angle) * radius;
+        const y = center + Math.sin(angle) * radius;
+        const isSelected = isHour
+          ? currentVal % 12 === num % 12 && currentVal < 13
+          : currentVal === num;
+        const isSel12 = isHour && num === 12 && currentVal === 12;
+        const isSel0 = isHour && num === 12 && currentVal === 0 ? false : false;
+        const finalSel = isHour
+          ? num === 12
+            ? currentVal === 12
+            : currentVal === num && currentVal < 13
+          : currentVal === num;
+        return (
+          <div
+            key={`o${i}`}
+            style={{
+              position: "absolute",
+              left: x - 16,
+              top: y - 16,
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              backgroundColor: finalSel ? color : "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 13,
+              fontWeight: 800,
+              color: finalSel ? "#fff" : "#374151",
+              pointerEvents: "none",
+            }}
+          >
+            {isHour ? num : String(num).padStart(2, "0")}
+          </div>
+        );
+      })}
+
+      {/* Inner numbers (hour 13-00) */}
+      {innerNums.map((num, i) => {
+        const angle = (i / 12) * 2 * Math.PI - Math.PI / 2;
+        const x = center + Math.cos(angle) * innerRadius;
+        const y = center + Math.sin(angle) * innerRadius;
+        const finalSel =
+          (currentVal === num && currentVal >= 13) ||
+          (num === 0 && currentVal === 0);
+        return (
+          <div
+            key={`in${i}`}
+            style={{
+              position: "absolute",
+              left: x - 14,
+              top: y - 14,
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              backgroundColor: finalSel ? color : "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 700,
+              color: finalSel ? "#fff" : "#94a3b8",
+              pointerEvents: "none",
+            }}
+          >
+            {num === 0 ? "00" : num}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Clock Time Picker (used for both web & native replacement) ─
+function ClockTimePicker({ label, color, time, onChangeTime }) {
+  const [h, m] = time ? time.split(":") : ["06", "00"];
+  const [activeMode, setActiveMode] = useState("hour"); // "hour" | "minute"
+  const sp = (e) => e.stopPropagation();
 
   return (
     <div
@@ -3546,18 +3706,22 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
         border: "1px solid #e2e8f0",
         display: "flex",
         flexDirection: "column",
+        alignItems: "center",
         gap: 8,
+        userSelect: "none",
       }}
-      onMouseDown={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
-      onTouchEnd={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
+      onMouseDown={sp}
+      onTouchStart={sp}
+      onTouchEnd={sp}
+      onClick={sp}
     >
+      {/* Label + current time */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          width: "100%",
           borderLeft: `3px solid ${color}`,
           paddingLeft: 8,
         }}
@@ -3567,134 +3731,139 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
         >
           {label}
         </span>
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 900,
-            color: "#1e293b",
-            letterSpacing: 1,
-          }}
-        >
-          {h || "--"}:{m || "--"}
-        </span>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#fff",
-          borderRadius: 14,
-          border: "1px solid #e2e8f0",
-          padding: "6px 8px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 9,
-              color: "#94a3b8",
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
-          >
-            HH
-          </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={2}
-            value={h}
-            onChange={handleH}
-            placeholder="--"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onFocus={(e) => e.stopPropagation()}
-            style={inputStyle}
-          />
-        </div>
-        <span
-          style={{
-            fontSize: 26,
-            fontWeight: 900,
-            color: "#e2e8f0",
-            margin: "0 2px",
-            paddingBottom: 4,
-          }}
-        >
-          :
-        </span>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 9,
-              color: "#94a3b8",
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
-          >
-            MM
-          </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={2}
-            value={m}
-            onChange={handleM}
-            placeholder="--"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onFocus={(e) => e.stopPropagation()}
-            style={inputStyle}
-          />
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 4 }}>
-        {["00", "15", "30", "45"].map((min) => (
+        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+          {/* HH button */}
           <button
-            key={min}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              onChangeTime(`${h || "06"}:${min}`);
+              setActiveMode("hour");
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              setActiveMode("hour");
+            }}
+            style={{
+              fontSize: 20,
+              fontWeight: 900,
+              color: activeMode === "hour" ? "#fff" : color,
+              background: activeMode === "hour" ? color : "transparent",
+              border: "none",
+              borderRadius: 8,
+              padding: "2px 6px",
+              cursor: "pointer",
+              touchAction: "manipulation",
+            }}
+          >
+            {h}
+          </button>
+          <span style={{ fontSize: 20, fontWeight: 900, color: "#cbd5e1" }}>
+            :
+          </span>
+          {/* MM button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMode("minute");
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              setActiveMode("minute");
+            }}
+            style={{
+              fontSize: 20,
+              fontWeight: 900,
+              color: activeMode === "minute" ? "#fff" : color,
+              background: activeMode === "minute" ? color : "transparent",
+              border: "none",
+              borderRadius: 8,
+              padding: "2px 6px",
+              cursor: "pointer",
+              touchAction: "manipulation",
+            }}
+          >
+            {m}
+          </button>
+        </div>
+      </div>
+
+      {/* Mode tabs */}
+      <div style={{ display: "flex", gap: 6, width: "100%" }}>
+        {["hour", "minute"].map((md) => (
+          <button
+            key={md}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMode(md);
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              setActiveMode(md);
             }}
             style={{
               flex: 1,
               padding: "5px 0",
               fontSize: 10,
               fontWeight: 800,
-              color: m === min ? "#fff" : "#64748b",
-              backgroundColor: m === min ? color : "#f1f5f9",
+              color: activeMode === md ? "#fff" : "#64748b",
+              backgroundColor: activeMode === md ? color : "#f1f5f9",
               border: "none",
               borderRadius: 8,
               cursor: "pointer",
               touchAction: "manipulation",
             }}
           >
-            :{min}
+            {md === "hour" ? "HOUR" : "MIN"}
           </button>
         ))}
       </div>
+
+      {/* Clock face */}
+      <ClockPicker
+        mode={activeMode}
+        value={activeMode === "hour" ? h : m}
+        color={color}
+        onChange={(val) => {
+          if (activeMode === "hour") {
+            onChangeTime(`${val}:${m}`);
+            setActiveMode("minute"); // auto switch to minute after hour pick
+          } else {
+            onChangeTime(`${h}:${val}`);
+          }
+        }}
+      />
+
+      {/* Quick minute presets */}
+      {activeMode === "minute" && (
+        <div style={{ display: "flex", gap: 4, width: "100%" }}>
+          {["00", "15", "30", "45"].map((min) => (
+            <button
+              key={min}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChangeTime(`${h}:${min}`);
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                onChangeTime(`${h}:${min}`);
+              }}
+              style={{
+                flex: 1,
+                padding: "5px 0",
+                fontSize: 10,
+                fontWeight: 800,
+                color: m === min ? "#fff" : "#64748b",
+                backgroundColor: m === min ? color : "#f1f5f9",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                touchAction: "manipulation",
+              }}
+            >
+              :{min}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -3793,7 +3962,7 @@ function TimeRangePickerModal({
       <View style={trp.divider} />
 
       {/* Presets */}
-      <Text style={trp.sectionLabel}>QUICK P</Text>
+      <Text style={trp.sectionLabel}>QUI</Text>
       <View style={trp.presetRow}>
         {presets.map((p) => {
           const active = localFrom === p.from && localTo === p.to;
