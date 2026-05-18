@@ -3294,15 +3294,15 @@ const showAlert = (title, message, buttons) => {
     if (hasConfirm) {
       const confirmed = window.confirm(`${title}\n\n${message}`);
       if (confirmed) {
-        const d = buttons.find(
+        const destructiveBtn = buttons.find(
           (b) => b.style === "destructive" || b.text === "Logout",
         );
-        if (d?.onPress) d.onPress();
+        if (destructiveBtn?.onPress) destructiveBtn.onPress();
       }
     } else {
       window.alert(`${title}\n\n${message}`);
-      const ok = buttons?.find((b) => b.onPress);
-      if (ok?.onPress) ok.onPress();
+      const okBtn = buttons?.find((b) => b.onPress);
+      if (okBtn?.onPress) okBtn.onPress();
     }
   } else {
     Alert.alert(title, message, buttons);
@@ -3310,961 +3310,12 @@ const showAlert = (title, message, buttons) => {
 };
 
 // ============================================================
-// ✅ DRUM SCROLL PICKER (Native only)
-// ============================================================
-const ITEM_HEIGHT = 48;
-const VISIBLE_ITEMS = 5;
-const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
-
-function DrumPicker({ values, selected, onChange, pickerWidth = 80 }) {
-  const scrollRef = useRef(null);
-  const selectedIndex = values.indexOf(selected);
-
-  useEffect(() => {
-    if (scrollRef.current && selectedIndex >= 0) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({
-          y: selectedIndex * ITEM_HEIGHT,
-          animated: false,
-        });
-      }, 80);
-    }
-  }, []);
-
-  const handleMomentumEnd = (e) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, values.length - 1));
-    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
-    onChange(values[clamped]);
-  };
-
-  const handleScroll = (e) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, values.length - 1));
-    if (values[clamped] !== selected) onChange(values[clamped]);
-  };
-
-  return (
-    <View style={[drum.container, { width: pickerWidth }]}>
-      <View style={drum.selectorHighlight} pointerEvents="none" />
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        onScroll={handleScroll}
-        onMomentumScrollEnd={handleMomentumEnd}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-      >
-        {values.map((val, i) => {
-          const isSelected = val === selected;
-          return (
-            <TouchableOpacity
-              key={i}
-              style={[drum.item, { height: ITEM_HEIGHT }]}
-              onPress={() => {
-                scrollRef.current?.scrollTo({
-                  y: i * ITEM_HEIGHT,
-                  animated: true,
-                });
-                onChange(val);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[drum.itemText, isSelected && drum.itemTextSelected]}
-              >
-                {val}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
-const drum = StyleSheet.create({
-  container: {
-    height: PICKER_HEIGHT,
-    overflow: "hidden",
-    position: "relative",
-  },
-  selectorHighlight: {
-    position: "absolute",
-    top: ITEM_HEIGHT * 2,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: "#6366f1",
-    zIndex: 10,
-    borderRadius: 0,
-  },
-  item: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  itemText: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#cbd5e1",
-    letterSpacing: 1,
-  },
-  itemTextSelected: {
-    color: "#0f172a",
-    fontWeight: "900",
-    fontSize: 26,
-  },
-});
-
-// ── Native Time Picker Block ──────────────────────────────────
-function NativeTimePicker({ label, color, time, onChangeTime }) {
-  const hours = Array.from({ length: 24 }, (_, i) =>
-    String(i).padStart(2, "0"),
-  );
-  const minutes = Array.from({ length: 60 }, (_, i) =>
-    String(i).padStart(2, "0"),
-  );
-  const [h, m] = time ? time.split(":") : ["06", "00"];
-  const pickerW = Math.floor((width - 96) / 2 - 28);
-
-  return (
-    <View style={ntp.wrapper}>
-      <View style={[ntp.labelRow, { borderLeftColor: color }]}>
-        <Text style={[ntp.label, { color }]}>{label}</Text>
-        <Text style={ntp.timeDisplay}>
-          {h}:{m}
-        </Text>
-      </View>
-      <View style={ntp.pickerRow}>
-        <DrumPicker
-          values={hours}
-          selected={h}
-          onChange={(val) => onChangeTime(`${val}:${m}`)}
-          pickerWidth={pickerW}
-        />
-        <Text style={ntp.colon}>:</Text>
-        <DrumPicker
-          values={minutes}
-          selected={m}
-          onChange={(val) => onChangeTime(`${h}:${val}`)}
-          pickerWidth={pickerW}
-        />
-      </View>
-    </View>
-  );
-}
-
-const ntp = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: "#f8fafc",
-    borderRadius: 20,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  labelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    paddingLeft: 8,
-    borderLeftWidth: 3,
-  },
-  label: { fontSize: 10, fontWeight: "900", letterSpacing: 1.5 },
-  timeDisplay: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#1e293b",
-    letterSpacing: 1,
-  },
-  pickerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  colon: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#e2e8f0",
-    marginHorizontal: 4,
-    marginBottom: 4,
-  },
-});
-
-// ============================================================
-// ✅ WEB CLOCK PICKER — Clock-style analog HH MM selector
-// ============================================================
-function WebTimePicker({ label, color, time, onChangeTime }) {
-  const parts = (time || "06:00").split(":");
-  const h = parts[0] || "06";
-  const m = parts[1] || "00";
-  const [mode, setMode] = useState("hour");
-
-  const hNum = parseInt(h, 10) || 0;
-  const mNum = parseInt(m, 10) || 0;
-
-  const SIZE = 200;
-  const CX = SIZE / 2;
-  const CY = SIZE / 2;
-  const R_OUTER = 76;
-  const R_INNER = 50;
-
-  const toRad = (deg) => (deg * Math.PI) / 180;
-
-  const handAngle = mode === "hour" ? (hNum % 12) * 30 - 90 : mNum * 6 - 90;
-  const handRadius =
-    mode === "hour" ? (hNum >= 12 ? R_INNER : R_OUTER) : R_OUTER;
-  const handX = CX + handRadius * Math.cos(toRad(handAngle));
-  const handY = CY + handRadius * Math.sin(toRad(handAngle));
-
-  const getPos = (angleDeg, r) => ({
-    x: CX + r * Math.cos(toRad(angleDeg - 90)),
-    y: CY + r * Math.sin(toRad(angleDeg - 90)),
-  });
-
-  const handleClockClick = (e) => {
-    e.stopPropagation();
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    const px = e.clientX - rect.left - CX;
-    const py = e.clientY - rect.top - CY;
-    const dist = Math.sqrt(px * px + py * py);
-    if (dist > 92) return; // outside clock face — ignore
-    const angle = Math.atan2(py, px) * (180 / Math.PI) + 90;
-    const norm = ((angle % 360) + 360) % 360;
-
-    if (mode === "hour") {
-      const rawH = Math.round(norm / 30) % 12;
-      const isInner = dist < (R_OUTER + R_INNER) / 2;
-      const finalH = isInner ? rawH + 12 : rawH;
-      onChangeTime(`${String(finalH).padStart(2, "0")}:${m}`);
-      setMode("minute");
-    } else {
-      const rawM = Math.round(norm / 6) % 60;
-      onChangeTime(`${h}:${String(rawM).padStart(2, "0")}`);
-    }
-  };
-
-  const outerHours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-  const innerHours = [0, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
-  const minuteNumbers = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-
-  const ticks = Array.from({ length: 60 }, (_, i) => {
-    const a = toRad(i * 6 - 90);
-    const isMajor = i % 5 === 0;
-    const r1 = isMajor ? 82 : 85;
-    return { i, a, isMajor, r1 };
-  });
-
-  return (
-    <div
-      style={{
-        flex: 1,
-        backgroundColor: "#f8fafc",
-        borderRadius: 20,
-        padding: 12,
-        border: "1px solid #e2e8f0",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
-        minWidth: 0,
-      }}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Label + current time */}
-      <div
-        style={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderLeft: `3px solid ${color}`,
-          paddingLeft: 8,
-        }}
-      >
-        <span
-          style={{ fontSize: 10, fontWeight: 900, color, letterSpacing: 1.5 }}
-        >
-          {label}
-        </span>
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 900,
-            color: "#1e293b",
-            letterSpacing: 1,
-          }}
-        >
-          {h}:{m}
-        </span>
-      </div>
-
-      {/* HH : MM toggle buttons */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          background: "#fff",
-          borderRadius: 14,
-          border: "1px solid #e2e8f0",
-          padding: "4px 10px",
-        }}
-      >
-        <button
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            setMode("hour");
-          }}
-          style={{
-            fontSize: 22,
-            fontWeight: 900,
-            color: mode === "hour" ? color : "#94a3b8",
-            background: mode === "hour" ? color + "22" : "transparent",
-            border: "none",
-            borderRadius: 8,
-            padding: "2px 10px",
-            cursor: "pointer",
-            letterSpacing: 1,
-            outline: "none",
-          }}
-        >
-          {h}
-        </button>
-        <span style={{ fontSize: 22, fontWeight: 900, color: "#e2e8f0" }}>
-          :
-        </span>
-        <button
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            setMode("minute");
-          }}
-          style={{
-            fontSize: 22,
-            fontWeight: 900,
-            color: mode === "minute" ? color : "#94a3b8",
-            background: mode === "minute" ? color + "22" : "transparent",
-            border: "none",
-            borderRadius: 8,
-            padding: "2px 10px",
-            cursor: "pointer",
-            letterSpacing: 1,
-            outline: "none",
-          }}
-        >
-          {m}
-        </button>
-      </div>
-
-      {/* Clock Face SVG */}
-      <svg
-        width={SIZE}
-        height={SIZE}
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
-        style={{ cursor: "crosshair", flexShrink: 0 }}
-        onClick={handleClockClick}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {/* Background circle */}
-        <circle
-          cx={CX}
-          cy={CY}
-          r={90}
-          fill="#fff"
-          stroke="#e2e8f0"
-          strokeWidth={1.5}
-        />
-
-        {/* Tick marks */}
-        {ticks.map(({ i, a, isMajor, r1 }) => (
-          <line
-            key={i}
-            x1={CX + r1 * Math.cos(a)}
-            y1={CY + r1 * Math.sin(a)}
-            x2={CX + 88 * Math.cos(a)}
-            y2={CY + 88 * Math.sin(a)}
-            stroke={isMajor ? "#cbd5e1" : "#e2e8f0"}
-            strokeWidth={isMajor ? 1.5 : 0.8}
-          />
-        ))}
-
-        {/* Inner / outer ring separator — only in hour mode */}
-        {mode === "hour" && (
-          <circle
-            cx={CX}
-            cy={CY}
-            r={(R_OUTER + R_INNER) / 2}
-            fill="none"
-            stroke="#f1f5f9"
-            strokeWidth={18}
-          />
-        )}
-
-        {/* HOUR MODE numbers */}
-        {mode === "hour" && (
-          <>
-            {outerHours.map((num, i) => {
-              const pos = getPos(i * 30, R_OUTER);
-              const hVal = num === 12 ? 0 : num;
-              const isActive = hNum === hVal;
-              return (
-                <g key={"o" + num}>
-                  {isActive && (
-                    <circle cx={pos.x} cy={pos.y} r={13} fill={color} />
-                  )}
-                  <text
-                    x={pos.x}
-                    y={pos.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={isActive ? 12 : 11}
-                    fontWeight={isActive ? "900" : "600"}
-                    fill={isActive ? "#fff" : "#1e293b"}
-                  >
-                    {String(hVal).padStart(2, "0")}
-                  </text>
-                </g>
-              );
-            })}
-            {innerHours.map((num, i) => {
-              const pos = getPos(i * 30, R_INNER);
-              const isActive = hNum === num;
-              return (
-                <g key={"i" + num}>
-                  {isActive && (
-                    <circle
-                      cx={pos.x}
-                      cy={pos.y}
-                      r={11}
-                      fill={color}
-                      opacity={0.85}
-                    />
-                  )}
-                  <text
-                    x={pos.x}
-                    y={pos.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={isActive ? 10 : 9}
-                    fontWeight={isActive ? "900" : "600"}
-                    fill={isActive ? "#fff" : "#64748b"}
-                  >
-                    {String(num).padStart(2, "0")}
-                  </text>
-                </g>
-              );
-            })}
-          </>
-        )}
-
-        {/* MINUTE MODE numbers */}
-        {mode === "minute" && (
-          <>
-            {minuteNumbers.map((num, i) => {
-              const pos = getPos(i * 30, R_OUTER);
-              const isActive = mNum === num;
-              return (
-                <g key={"mn" + num}>
-                  {isActive && (
-                    <circle cx={pos.x} cy={pos.y} r={13} fill={color} />
-                  )}
-                  <text
-                    x={pos.x}
-                    y={pos.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={isActive ? 12 : 11}
-                    fontWeight={isActive ? "900" : "600"}
-                    fill={isActive ? "#fff" : "#1e293b"}
-                  >
-                    {String(num).padStart(2, "0")}
-                  </text>
-                </g>
-              );
-            })}
-            {/* Dot for non-5 minute */}
-            {mNum % 5 !== 0 && (
-              <circle
-                cx={CX + R_OUTER * Math.cos(toRad(mNum * 6 - 90))}
-                cy={CY + R_OUTER * Math.sin(toRad(mNum * 6 - 90))}
-                r={5}
-                fill={color}
-              />
-            )}
-          </>
-        )}
-
-        {/* Clock hand */}
-        <line
-          x1={CX}
-          y1={CY}
-          x2={handX}
-          y2={handY}
-          stroke={color}
-          strokeWidth={2}
-          strokeLinecap="round"
-        />
-        {/* Center dot */}
-        <circle cx={CX} cy={CY} r={4} fill={color} />
-        {/* Hand tip glow */}
-        <circle cx={handX} cy={handY} r={6} fill={color} opacity={0.25} />
-      </svg>
-
-      {/* Mode hint */}
-      <div
-        style={{
-          fontSize: 9,
-          fontWeight: 800,
-          color: "#94a3b8",
-          letterSpacing: 1.5,
-        }}
-      >
-        {mode === "hour" ? "TAP CLOCK TO SET HOUR" : "TAP CLOCK TO SET MINUTE"}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// ✅ TIME RANGE PICKER MODAL — FULLY RESPONSIVE
-// ============================================================
-function TimeRangePickerModal({
-  visible,
-  fromTime,
-  toTime,
-  onApply,
-  onClear,
-  onClose,
-}) {
-  const [localFrom, setLocalFrom] = useState(fromTime || "06:00");
-  const [localTo, setLocalTo] = useState(toTime || "09:00");
-  const [error, setError] = useState("");
-  const slideAnim = useRef(new Animated.Value(height)).current;
-
-  useEffect(() => {
-    if (visible) {
-      setLocalFrom(fromTime || "06:00");
-      setLocalTo(toTime || "09:00");
-      setError("");
-      if (Platform.OS !== "web") {
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 80,
-          friction: 12,
-          useNativeDriver: true,
-        }).start();
-      }
-    } else {
-      if (Platform.OS !== "web") {
-        Animated.timing(slideAnim, {
-          toValue: height,
-          duration: 220,
-          useNativeDriver: true,
-        }).start();
-      }
-    }
-  }, [visible]);
-
-  const validate = (val) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(val);
-
-  const handleApply = () => {
-    if (!validate(localFrom)) {
-      setError("From time சரியாக இல்ல (HH:MM)");
-      return;
-    }
-    if (!validate(localTo)) {
-      setError("To time சரியாக இல்ல (HH:MM)");
-      return;
-    }
-    if (localFrom >= localTo) {
-      setError("From time, To time-ஐ விட குறைவாக இருக்கணும்");
-      return;
-    }
-    setError("");
-    onApply(localFrom, localTo);
-    onClose();
-  };
-
-  const handleClear = () => {
-    setLocalFrom("06:00");
-    setLocalTo("09:00");
-    setError("");
-    onClear();
-    onClose();
-  };
-
-  const presets = [
-    { label: "Morning", from: "05:00", to: "09:00", icon: "sunny-outline" },
-    {
-      label: "Afternoon",
-      from: "09:00",
-      to: "13:00",
-      icon: "partly-sunny-outline",
-    },
-    { label: "Evening", from: "15:00", to: "20:00", icon: "moon-outline" },
-  ];
-
-  const SheetContent = () => (
-    <View style={trp.sheet}>
-      <View style={trp.handle} />
-
-      {/* Header */}
-      <View style={trp.header}>
-        <View style={trp.headerLeft}>
-          <LinearGradient
-            colors={["#6366f1", "#4f46e5"]}
-            style={trp.headerIcon}
-          >
-            <Ionicons name="time" size={18} color="#fff" />
-          </LinearGradient>
-          <View>
-            <Text style={trp.title}>Time Filter</Text>
-            <Text style={trp.subtitle}>
-              Attendance time range select பண்ணுங்க
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity onPress={onClose} style={trp.closeBtn}>
-          <Ionicons name="close" size={16} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={trp.divider} />
-
-      {/* Presets */}
-      <Text style={trp.sectionLabel}>QUICK PRESETS</Text>
-      <View style={trp.presetRow}>
-        {presets.map((p) => {
-          const active = localFrom === p.from && localTo === p.to;
-          return (
-            <TouchableOpacity
-              key={p.label}
-              style={[trp.preset, active && trp.presetActive]}
-              onPress={() => {
-                setLocalFrom(p.from);
-                setLocalTo(p.to);
-                setError("");
-              }}
-            >
-              <Ionicons
-                name={p.icon}
-                size={15}
-                color={active ? "#fff" : "#6366f1"}
-              />
-              <Text style={[trp.presetLabel, active && trp.presetLabelActive]}>
-                {p.label}
-              </Text>
-              <Text style={[trp.presetTime, active && { color: "#c7d2fe" }]}>
-                {p.from}–{p.to}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Pickers */}
-      <Text style={[trp.sectionLabel, { marginTop: 18 }]}>
-        {Platform.OS === "web"
-          ? "TAP CLOCK TO SELECT TIME"
-          : "SCROLL TO SELECT"}
-      </Text>
-
-      <View style={trp.pickersRow}>
-        {Platform.OS === "web" ? (
-          <>
-            <WebTimePicker
-              label="FROM"
-              color="#6366f1"
-              time={localFrom}
-              onChangeTime={(v) => {
-                setLocalFrom(v);
-                setError("");
-              }}
-            />
-            <View style={trp.arrowWrap}>
-              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
-            </View>
-            <WebTimePicker
-              label="TO"
-              color="#f59e0b"
-              time={localTo}
-              onChangeTime={(v) => {
-                setLocalTo(v);
-                setError("");
-              }}
-            />
-          </>
-        ) : (
-          <>
-            <NativeTimePicker
-              label="FROM"
-              color="#6366f1"
-              time={localFrom}
-              onChangeTime={(v) => {
-                setLocalFrom(v);
-                setError("");
-              }}
-            />
-            <View style={trp.arrowWrap}>
-              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
-            </View>
-            <NativeTimePicker
-              label="TO"
-              color="#f59e0b"
-              time={localTo}
-              onChangeTime={(v) => {
-                setLocalTo(v);
-                setError("");
-              }}
-            />
-          </>
-        )}
-      </View>
-
-      {/* Preview */}
-      <View style={trp.preview}>
-        <Ionicons name="time-outline" size={14} color="#6366f1" />
-        <Text style={trp.previewText}>
-          {localFrom} → {localTo}
-        </Text>
-      </View>
-
-      {/* Error */}
-      {error ? (
-        <View style={trp.errorRow}>
-          <Ionicons name="alert-circle" size={13} color="#ef4444" />
-          <Text style={trp.errorText}>{error}</Text>
-        </View>
-      ) : null}
-
-      {/* Buttons */}
-      <View style={trp.btnRow}>
-        <TouchableOpacity style={trp.clearBtn} onPress={handleClear}>
-          <Ionicons name="refresh" size={14} color="#64748b" />
-          <Text style={trp.clearBtnText}>Clear</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={trp.applyBtnWrap} onPress={handleApply}>
-          <LinearGradient colors={["#6366f1", "#4f46e5"]} style={trp.applyBtn}>
-            <Ionicons name="checkmark-circle" size={16} color="#fff" />
-            <Text style={trp.applyBtnText}>Apply Filter</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  // WEB
-  if (Platform.OS === "web") {
-    if (!visible) return null;
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 9999,
-          backgroundColor: "rgba(2,6,23,0.72)",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "center",
-        }}
-        onMouseDown={onClose}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 600,
-            zIndex: 10000,
-            borderRadius: "34px 34px 0 0",
-            overflow: "hidden",
-            maxHeight: "95vh",
-            overflowY: "auto",
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <SheetContent />
-        </div>
-      </div>
-    );
-  }
-
-  // NATIVE
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={trp.overlay}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={onClose}
-          />
-          <Animated.View
-            style={{ transform: [{ translateY: slideAnim }], width: "100%" }}
-            pointerEvents="box-none"
-          >
-            <SheetContent />
-          </Animated.View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-const trp = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(2,6,23,0.72)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    padding: 24,
-    paddingBottom: Platform.OS === "ios" ? 40 : 28,
-  },
-  handle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#e2e8f0",
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  headerIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: { fontSize: 18, fontWeight: "900", color: "#0f172a" },
-  subtitle: { fontSize: 10, color: "#94a3b8", fontWeight: "600", marginTop: 2 },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: "#fef2f2",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  divider: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 18 },
-  sectionLabel: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#cbd5e1",
-    letterSpacing: 1.5,
-    marginBottom: 10,
-  },
-  presetRow: { flexDirection: "row", gap: 8 },
-  preset: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderRadius: 16,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    alignItems: "center",
-    gap: 3,
-  },
-  presetActive: { backgroundColor: "#4f46e5", borderColor: "#4f46e5" },
-  presetLabel: { fontSize: 11, fontWeight: "800", color: "#1e293b" },
-  presetLabelActive: { color: "#fff" },
-  presetTime: { fontSize: 9, color: "#94a3b8", fontWeight: "600" },
-  pickersRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  arrowWrap: {
-    width: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 100,
-  },
-  preview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#ede9fe",
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: "#c7d2fe",
-  },
-  previewText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#4f46e5",
-    letterSpacing: 1,
-  },
-  errorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 10,
-  },
-  errorText: { fontSize: 11, color: "#ef4444", fontWeight: "600" },
-  btnRow: { flexDirection: "row", gap: 10, marginTop: 16 },
-  clearBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  clearBtnText: { fontSize: 13, fontWeight: "700", color: "#64748b" },
-  applyBtnWrap: { flex: 2, borderRadius: 18, overflow: "hidden" },
-  applyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-  },
-  applyBtnText: { fontSize: 14, fontWeight: "900", color: "#fff" },
-});
-
-// ============================================================
-// ✅ CUSTOM CALENDAR MODAL (Native)
+// ✅ CUSTOM CALENDAR MODAL (Native) — FROM FIRST CODE (WORKING)
 // ============================================================
 function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
+
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
 
@@ -4290,8 +3341,10 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
     "December",
   ];
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-  const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-  const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
+
+  const getDaysInMonth = (year, month) =>
+    new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
   const prevMonth = () => {
     if (viewMonth === 0) {
@@ -4299,36 +3352,49 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
       setViewYear((y) => y - 1);
     } else setViewMonth((m) => m - 1);
   };
+
   const nextMonth = () => {
-    const n = new Date(viewYear, viewMonth + 1, 1);
-    if (n > today) return;
+    const next = new Date(viewYear, viewMonth + 1, 1);
+    if (next > today) return;
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear((y) => y + 1);
     } else setViewMonth((m) => m + 1);
   };
+
   const isNextDisabled = () => new Date(viewYear, viewMonth + 1, 1) > today;
 
-  const days = [];
-  for (let i = 0; i < getFirstDayOfMonth(viewYear, viewMonth); i++)
-    days.push(null);
-  for (let d = 1; d <= getDaysInMonth(viewYear, viewMonth); d++) days.push(d);
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const isFuture = (d) => {
-    const x = new Date(viewYear, viewMonth, d);
-    x.setHours(12, 0, 0, 0);
-    return x > today;
+  const isFuture = (day) => {
+    const d = new Date(viewYear, viewMonth, day);
+    d.setHours(12, 0, 0, 0);
+    return d > today;
   };
-  const isSelected = (d) =>
-    d &&
+
+  const isSelected = (day) =>
+    day &&
     currentDate.getFullYear() === viewYear &&
     currentDate.getMonth() === viewMonth &&
-    currentDate.getDate() === d;
-  const isToday = (d) =>
-    d &&
+    currentDate.getDate() === day;
+
+  const isToday = (day) =>
+    day &&
     today.getFullYear() === viewYear &&
     today.getMonth() === viewMonth &&
-    today.getDate() === d;
+    today.getDate() === day;
+
+  const handleSelect = (day) => {
+    if (!day || isFuture(day)) return;
+    const chosen = new Date(viewYear, viewMonth, day);
+    chosen.setHours(12, 0, 0, 0);
+    onSelectDate(chosen);
+    onClose();
+  };
 
   return (
     <Modal
@@ -4362,26 +3428,20 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
             ))}
           </View>
           <View style={cal.grid}>
-            {days.map((day, idx) => {
+            {cells.map((day, idx) => {
               const future = day ? isFuture(day) : false;
-              const sel = isSelected(day);
-              const tod = isToday(day);
+              const selected = isSelected(day);
+              const todayCell = isToday(day);
               return (
                 <TouchableOpacity
                   key={idx}
                   style={[
                     cal.cell,
-                    sel && cal.cellSelected,
-                    tod && !sel && cal.cellToday,
+                    selected && cal.cellSelected,
+                    todayCell && !selected && cal.cellToday,
                     future && cal.cellDisabled,
                   ]}
-                  onPress={() => {
-                    if (!day || future) return;
-                    const c = new Date(viewYear, viewMonth, day);
-                    c.setHours(12, 0, 0, 0);
-                    onSelectDate(c);
-                    onClose();
-                  }}
+                  onPress={() => handleSelect(day)}
                   disabled={!day || future}
                   activeOpacity={0.7}
                 >
@@ -4389,8 +3449,8 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
                     <Text
                       style={[
                         cal.cellText,
-                        sel && cal.cellTextSelected,
-                        tod && !sel && cal.cellTextToday,
+                        selected && cal.cellTextSelected,
+                        todayCell && !selected && cal.cellTextToday,
                         future && cal.cellTextDisabled,
                       ]}
                     >
@@ -4411,11 +3471,12 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
 }
 
 // ============================================================
-// ✅ WEB INLINE CALENDAR
+// ✅ WEB INLINE CALENDAR — FROM FIRST CODE (WORKING)
 // ============================================================
 function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
+
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
 
@@ -4434,8 +3495,10 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
     "December",
   ];
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-  const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-  const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
+
+  const getDaysInMonth = (year, month) =>
+    new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
   const prevMonth = () => {
     if (viewMonth === 0) {
@@ -4443,36 +3506,49 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
       setViewYear((y) => y - 1);
     } else setViewMonth((m) => m - 1);
   };
+
   const nextMonth = () => {
-    const n = new Date(viewYear, viewMonth + 1, 1);
-    if (n > today) return;
+    const next = new Date(viewYear, viewMonth + 1, 1);
+    if (next > today) return;
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear((y) => y + 1);
     } else setViewMonth((m) => m + 1);
   };
+
   const isNextDisabled = () => new Date(viewYear, viewMonth + 1, 1) > today;
 
-  const days = [];
-  for (let i = 0; i < getFirstDayOfMonth(viewYear, viewMonth); i++)
-    days.push(null);
-  for (let d = 1; d <= getDaysInMonth(viewYear, viewMonth); d++) days.push(d);
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const isFuture = (d) => {
-    const x = new Date(viewYear, viewMonth, d);
-    x.setHours(12, 0, 0, 0);
-    return x > today;
+  const isFuture = (day) => {
+    const d = new Date(viewYear, viewMonth, day);
+    d.setHours(12, 0, 0, 0);
+    return d > today;
   };
-  const isSelected = (d) =>
-    d &&
+
+  const isSelected = (day) =>
+    day &&
     currentDate.getFullYear() === viewYear &&
     currentDate.getMonth() === viewMonth &&
-    currentDate.getDate() === d;
-  const isToday = (d) =>
-    d &&
+    currentDate.getDate() === day;
+
+  const isToday = (day) =>
+    day &&
     today.getFullYear() === viewYear &&
     today.getMonth() === viewMonth &&
-    today.getDate() === d;
+    today.getDate() === day;
+
+  // ✅ KEY FIX: onSelectDate(chosen) call பண்றோம், close பண்றோம்
+  const handleSelect = (day) => {
+    if (!day || isFuture(day)) return;
+    const chosen = new Date(viewYear, viewMonth, day);
+    chosen.setHours(12, 0, 0, 0);
+    onSelectDate(chosen); // ← date set
+  };
 
   return (
     <View style={wcal.box}>
@@ -4499,25 +3575,20 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
         ))}
       </View>
       <View style={wcal.grid}>
-        {days.map((day, idx) => {
+        {cells.map((day, idx) => {
           const future = day ? isFuture(day) : false;
-          const sel = isSelected(day);
-          const tod = isToday(day);
+          const selected = isSelected(day);
+          const todayCell = isToday(day);
           return (
             <TouchableOpacity
               key={idx}
               style={[
                 wcal.cell,
-                sel && wcal.cellSelected,
-                tod && !sel && wcal.cellToday,
+                selected && wcal.cellSelected,
+                todayCell && !selected && wcal.cellToday,
                 future && wcal.cellDisabled,
               ]}
-              onPress={() => {
-                if (!day || future) return;
-                const c = new Date(viewYear, viewMonth, day);
-                c.setHours(12, 0, 0, 0);
-                onSelectDate(c);
-              }}
+              onPress={() => handleSelect(day)}
               disabled={!day || future}
               activeOpacity={0.7}
             >
@@ -4525,8 +3596,8 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
                 <Text
                   style={[
                     wcal.cellText,
-                    sel && wcal.cellTextSelected,
-                    tod && !sel && wcal.cellTextToday,
+                    selected && wcal.cellTextSelected,
+                    todayCell && !selected && wcal.cellTextToday,
                     future && wcal.cellTextDisabled,
                   ]}
                 >
@@ -4544,6 +3615,7 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
   );
 }
 
+// Calendar styles
 const wcal = StyleSheet.create({
   box: {
     backgroundColor: "#f8faff",
@@ -4680,7 +3752,7 @@ const cal = StyleSheet.create({
 });
 
 // ============================================================
-// ✅ ATTENDANCE LIST MODAL
+// ✅ ATTENDANCE LIST MODAL — WITH FIXED CALENDAR
 // ============================================================
 function AttendanceListModal({
   visible,
@@ -4688,6 +3760,7 @@ function AttendanceListModal({
   filterType,
   setFilterType,
   currentDate,
+  setCurrentDate,
   formatDate,
   changeDate,
   showCalendar,
@@ -4738,6 +3811,7 @@ function AttendanceListModal({
           </TouchableOpacity>
         </View>
       </View>
+
       {isTimeFiltered && (
         <View style={alm.timeStrip}>
           <Ionicons name="time" size={13} color="#4f46e5" />
@@ -4755,6 +3829,7 @@ function AttendanceListModal({
           </TouchableOpacity>
         </View>
       )}
+
       <View style={alm.filterWrapper}>
         {["All", "Present", "Absent"].map((tab) => (
           <TouchableOpacity
@@ -4781,6 +3856,8 @@ function AttendanceListModal({
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* ── Date selector ── */}
       <View style={alm.dateSelector}>
         <TouchableOpacity
           onPress={() => changeDate(-1)}
@@ -4806,26 +3883,19 @@ function AttendanceListModal({
           <Ionicons name="chevron-forward" size={18} color="#6366f1" />
         </TouchableOpacity>
       </View>
-      {/* {Platform.OS === "web" && showCalendar && (
-        <WebInlineCalendar
-          currentDate={currentDate}
-          onClose={() => setShowCalendar(false)}
-          onSelectDate={(date) => {
-            setShowCalendar(false);
-          }}
-        />
-      )} */}
-      // ✅ CORRECT — first code மாதிரி
+
+      {/* ✅ WEB INLINE CALENDAR — FIXED: setCurrentDate + setShowCalendar both called */}
       {Platform.OS === "web" && showCalendar && (
         <WebInlineCalendar
           currentDate={currentDate}
           onClose={() => setShowCalendar(false)}
           onSelectDate={(date) => {
-            setCurrentDate(date); // ← இந்த line missing ஆச்சு
-            setShowCalendar(false);
+            setCurrentDate(date); // ✅ date update
+            setShowCalendar(false); // ✅ calendar close
           }}
         />
       )}
+
       <View style={alm.listHeader}>
         <Text style={alm.headerNo}>#</Text>
         <Text style={[alm.headerTxt, { flex: 2, textAlign: "left" }]}>
@@ -4834,6 +3904,7 @@ function AttendanceListModal({
         <Text style={[alm.headerTxt, { flex: 1 }]}>Class</Text>
         <Text style={[alm.headerTxt, { flex: 1 }]}>N | S</Text>
       </View>
+
       <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
         {filteredList.map((item, index) => (
           <View
@@ -5124,6 +4195,891 @@ const alm = StyleSheet.create({
 });
 
 // ============================================================
+// ✅ TIME RANGE PICKER MODAL
+// ============================================================
+const ITEM_HEIGHT = 48;
+const VISIBLE_ITEMS = 5;
+const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+
+function DrumPicker({ values, selected, onChange, pickerWidth = 80 }) {
+  const scrollRef = useRef(null);
+  const selectedIndex = values.indexOf(selected);
+
+  useEffect(() => {
+    if (scrollRef.current && selectedIndex >= 0) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({
+          y: selectedIndex * ITEM_HEIGHT,
+          animated: false,
+        });
+      }, 80);
+    }
+  }, []);
+
+  const handleMomentumEnd = (e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(index, values.length - 1));
+    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
+    onChange(values[clamped]);
+  };
+
+  const handleScroll = (e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(index, values.length - 1));
+    if (values[clamped] !== selected) onChange(values[clamped]);
+  };
+
+  return (
+    <View style={[drum.container, { width: pickerWidth }]}>
+      <View style={drum.selectorHighlight} pointerEvents="none" />
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleMomentumEnd}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
+      >
+        {values.map((val, i) => {
+          const isSelected = val === selected;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[drum.item, { height: ITEM_HEIGHT }]}
+              onPress={() => {
+                scrollRef.current?.scrollTo({
+                  y: i * ITEM_HEIGHT,
+                  animated: true,
+                });
+                onChange(val);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[drum.itemText, isSelected && drum.itemTextSelected]}
+              >
+                {val}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const drum = StyleSheet.create({
+  container: {
+    height: PICKER_HEIGHT,
+    overflow: "hidden",
+    position: "relative",
+  },
+  selectorHighlight: {
+    position: "absolute",
+    top: ITEM_HEIGHT * 2,
+    left: 0,
+    right: 0,
+    height: ITEM_HEIGHT,
+    borderTopWidth: 1.5,
+    borderBottomWidth: 1.5,
+    borderColor: "#6366f1",
+    zIndex: 10,
+  },
+  item: { justifyContent: "center", alignItems: "center" },
+  itemText: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#cbd5e1",
+    letterSpacing: 1,
+  },
+  itemTextSelected: { color: "#0f172a", fontWeight: "900", fontSize: 26 },
+});
+
+function NativeTimePicker({ label, color, time, onChangeTime }) {
+  const hours = Array.from({ length: 24 }, (_, i) =>
+    String(i).padStart(2, "0"),
+  );
+  const minutes = Array.from({ length: 60 }, (_, i) =>
+    String(i).padStart(2, "0"),
+  );
+  const [h, m] = time ? time.split(":") : ["06", "00"];
+  const pickerW = Math.floor((width - 96) / 2 - 28);
+
+  return (
+    <View style={ntp.wrapper}>
+      <View style={[ntp.labelRow, { borderLeftColor: color }]}>
+        <Text style={[ntp.label, { color }]}>{label}</Text>
+        <Text style={ntp.timeDisplay}>
+          {h}:{m}
+        </Text>
+      </View>
+      <View style={ntp.pickerRow}>
+        <DrumPicker
+          values={hours}
+          selected={h}
+          onChange={(val) => onChangeTime(`${val}:${m}`)}
+          pickerWidth={pickerW}
+        />
+        <Text style={ntp.colon}>:</Text>
+        <DrumPicker
+          values={minutes}
+          selected={m}
+          onChange={(val) => onChangeTime(`${h}:${val}`)}
+          pickerWidth={pickerW}
+        />
+      </View>
+    </View>
+  );
+}
+
+const ntp = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+    paddingLeft: 8,
+    borderLeftWidth: 3,
+  },
+  label: { fontSize: 10, fontWeight: "900", letterSpacing: 1.5 },
+  timeDisplay: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#1e293b",
+    letterSpacing: 1,
+  },
+  pickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  colon: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#e2e8f0",
+    marginHorizontal: 4,
+  },
+});
+
+function WebTimePicker({ label, color, time, onChangeTime }) {
+  const parts = (time || "06:00").split(":");
+  const h = parts[0] || "06";
+  const m = parts[1] || "00";
+  const [mode, setMode] = useState("hour");
+
+  const hNum = parseInt(h, 10) || 0;
+  const mNum = parseInt(m, 10) || 0;
+
+  const SIZE = 200;
+  const CX = SIZE / 2;
+  const CY = SIZE / 2;
+  const R_OUTER = 76;
+  const R_INNER = 50;
+
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const handAngle = mode === "hour" ? (hNum % 12) * 30 - 90 : mNum * 6 - 90;
+  const handRadius =
+    mode === "hour" ? (hNum >= 12 ? R_INNER : R_OUTER) : R_OUTER;
+  const handX = CX + handRadius * Math.cos(toRad(handAngle));
+  const handY = CY + handRadius * Math.sin(toRad(handAngle));
+
+  const getPos = (angleDeg, r) => ({
+    x: CX + r * Math.cos(toRad(angleDeg - 90)),
+    y: CY + r * Math.sin(toRad(angleDeg - 90)),
+  });
+
+  const handleClockClick = (e) => {
+    e.stopPropagation();
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const px = e.clientX - rect.left - CX;
+    const py = e.clientY - rect.top - CY;
+    const dist = Math.sqrt(px * px + py * py);
+    if (dist > 92) return;
+    const angle = Math.atan2(py, px) * (180 / Math.PI) + 90;
+    const norm = ((angle % 360) + 360) % 360;
+
+    if (mode === "hour") {
+      const rawH = Math.round(norm / 30) % 12;
+      const isInner = dist < (R_OUTER + R_INNER) / 2;
+      const finalH = isInner ? rawH + 12 : rawH;
+      onChangeTime(`${String(finalH).padStart(2, "0")}:${m}`);
+      setMode("minute");
+    } else {
+      const rawM = Math.round(norm / 6) % 60;
+      onChangeTime(`${h}:${String(rawM).padStart(2, "0")}`);
+    }
+  };
+
+  const outerHours = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const innerHours = [0, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+  const minuteNumbers = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+  const ticks = Array.from({ length: 60 }, (_, i) => {
+    const a = toRad(i * 6 - 90);
+    const isMajor = i % 5 === 0;
+    const r1 = isMajor ? 82 : 85;
+    return { i, a, isMajor, r1 };
+  });
+
+  return (
+    <div
+      style={{
+        flex: 1,
+        backgroundColor: "#f8fafc",
+        borderRadius: 20,
+        padding: 12,
+        border: "1px solid #e2e8f0",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+        minWidth: 0,
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderLeft: `3px solid ${color}`,
+          paddingLeft: 8,
+        }}
+      >
+        <span
+          style={{ fontSize: 10, fontWeight: 900, color, letterSpacing: 1.5 }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 900,
+            color: "#1e293b",
+            letterSpacing: 1,
+          }}
+        >
+          {h}:{m}
+        </span>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          background: "#fff",
+          borderRadius: 14,
+          border: "1px solid #e2e8f0",
+          padding: "4px 10px",
+        }}
+      >
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMode("hour");
+          }}
+          style={{
+            fontSize: 22,
+            fontWeight: 900,
+            color: mode === "hour" ? color : "#94a3b8",
+            background: mode === "hour" ? color + "22" : "transparent",
+            border: "none",
+            borderRadius: 8,
+            padding: "2px 10px",
+            cursor: "pointer",
+            outline: "none",
+          }}
+        >
+          {h}
+        </button>
+        <span style={{ fontSize: 22, fontWeight: 900, color: "#e2e8f0" }}>
+          :
+        </span>
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMode("minute");
+          }}
+          style={{
+            fontSize: 22,
+            fontWeight: 900,
+            color: mode === "minute" ? color : "#94a3b8",
+            background: mode === "minute" ? color + "22" : "transparent",
+            border: "none",
+            borderRadius: 8,
+            padding: "2px 10px",
+            cursor: "pointer",
+            outline: "none",
+          }}
+        >
+          {m}
+        </button>
+      </div>
+      <svg
+        width={SIZE}
+        height={SIZE}
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        style={{ cursor: "crosshair", flexShrink: 0 }}
+        onClick={handleClockClick}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <circle
+          cx={CX}
+          cy={CY}
+          r={90}
+          fill="#fff"
+          stroke="#e2e8f0"
+          strokeWidth={1.5}
+        />
+        {ticks.map(({ i, a, isMajor, r1 }) => (
+          <line
+            key={i}
+            x1={CX + r1 * Math.cos(a)}
+            y1={CY + r1 * Math.sin(a)}
+            x2={CX + 88 * Math.cos(a)}
+            y2={CY + 88 * Math.sin(a)}
+            stroke={isMajor ? "#cbd5e1" : "#e2e8f0"}
+            strokeWidth={isMajor ? 1.5 : 0.8}
+          />
+        ))}
+        {mode === "hour" && (
+          <circle
+            cx={CX}
+            cy={CY}
+            r={(R_OUTER + R_INNER) / 2}
+            fill="none"
+            stroke="#f1f5f9"
+            strokeWidth={18}
+          />
+        )}
+        {mode === "hour" &&
+          outerHours.map((num, i) => {
+            const pos = getPos(i * 30, R_OUTER);
+            const hVal = num === 12 ? 0 : num;
+            const isActive = hNum === hVal;
+            return (
+              <g key={"o" + num}>
+                {isActive && (
+                  <circle cx={pos.x} cy={pos.y} r={13} fill={color} />
+                )}
+                <text
+                  x={pos.x}
+                  y={pos.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={isActive ? 12 : 11}
+                  fontWeight={isActive ? "900" : "600"}
+                  fill={isActive ? "#fff" : "#1e293b"}
+                >
+                  {String(hVal).padStart(2, "0")}
+                </text>
+              </g>
+            );
+          })}
+        {mode === "hour" &&
+          innerHours.map((num, i) => {
+            const pos = getPos(i * 30, R_INNER);
+            const isActive = hNum === num;
+            return (
+              <g key={"i" + num}>
+                {isActive && (
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={11}
+                    fill={color}
+                    opacity={0.85}
+                  />
+                )}
+                <text
+                  x={pos.x}
+                  y={pos.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={isActive ? 10 : 9}
+                  fontWeight={isActive ? "900" : "600"}
+                  fill={isActive ? "#fff" : "#64748b"}
+                >
+                  {String(num).padStart(2, "0")}
+                </text>
+              </g>
+            );
+          })}
+        {mode === "minute" &&
+          minuteNumbers.map((num, i) => {
+            const pos = getPos(i * 30, R_OUTER);
+            const isActive = mNum === num;
+            return (
+              <g key={"mn" + num}>
+                {isActive && (
+                  <circle cx={pos.x} cy={pos.y} r={13} fill={color} />
+                )}
+                <text
+                  x={pos.x}
+                  y={pos.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={isActive ? 12 : 11}
+                  fontWeight={isActive ? "900" : "600"}
+                  fill={isActive ? "#fff" : "#1e293b"}
+                >
+                  {String(num).padStart(2, "0")}
+                </text>
+              </g>
+            );
+          })}
+        {mode === "minute" && mNum % 5 !== 0 && (
+          <circle
+            cx={CX + R_OUTER * Math.cos(toRad(mNum * 6 - 90))}
+            cy={CY + R_OUTER * Math.sin(toRad(mNum * 6 - 90))}
+            r={5}
+            fill={color}
+          />
+        )}
+        <line
+          x1={CX}
+          y1={CY}
+          x2={handX}
+          y2={handY}
+          stroke={color}
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+        <circle cx={CX} cy={CY} r={4} fill={color} />
+        <circle cx={handX} cy={handY} r={6} fill={color} opacity={0.25} />
+      </svg>
+      <div
+        style={{
+          fontSize: 9,
+          fontWeight: 800,
+          color: "#94a3b8",
+          letterSpacing: 1.5,
+        }}
+      >
+        {mode === "hour" ? "TAP CLOCK TO SET HOUR" : "TAP CLOCK TO SET MINUTE"}
+      </div>
+    </div>
+  );
+}
+
+function TimeRangePickerModal({
+  visible,
+  fromTime,
+  toTime,
+  onApply,
+  onClear,
+  onClose,
+}) {
+  const [localFrom, setLocalFrom] = useState(fromTime || "06:00");
+  const [localTo, setLocalTo] = useState(toTime || "09:00");
+  const [error, setError] = useState("");
+  const slideAnim = useRef(new Animated.Value(height)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setLocalFrom(fromTime || "06:00");
+      setLocalTo(toTime || "09:00");
+      setError("");
+      if (Platform.OS !== "web") {
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else {
+      if (Platform.OS !== "web") {
+        Animated.timing(slideAnim, {
+          toValue: height,
+          duration: 220,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+  }, [visible]);
+
+  const validate = (val) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(val);
+
+  const handleApply = () => {
+    if (!validate(localFrom)) {
+      setError("From time சரியாக இல்ல (HH:MM)");
+      return;
+    }
+    if (!validate(localTo)) {
+      setError("To time சரியாக இல்ல (HH:MM)");
+      return;
+    }
+    if (localFrom >= localTo) {
+      setError("From time, To time-ஐ விட குறைவாக இருக்கணும்");
+      return;
+    }
+    setError("");
+    onApply(localFrom, localTo);
+    onClose();
+  };
+
+  const handleClear = () => {
+    setLocalFrom("06:00");
+    setLocalTo("09:00");
+    setError("");
+    onClear();
+    onClose();
+  };
+
+  const presets = [
+    { label: "Morning", from: "05:00", to: "09:00", icon: "sunny-outline" },
+    {
+      label: "Afternoon",
+      from: "09:00",
+      to: "13:00",
+      icon: "partly-sunny-outline",
+    },
+    { label: "Evening", from: "15:00", to: "20:00", icon: "moon-outline" },
+  ];
+
+  const SheetContent = () => (
+    <View style={trp.sheet}>
+      <View style={trp.handle} />
+      <View style={trp.header}>
+        <View style={trp.headerLeft}>
+          <LinearGradient
+            colors={["#6366f1", "#4f46e5"]}
+            style={trp.headerIcon}
+          >
+            <Ionicons name="time" size={18} color="#fff" />
+          </LinearGradient>
+          <View>
+            <Text style={trp.title}>Time Filter</Text>
+            <Text style={trp.subtitle}>
+              Attendance time range select பண்ணுங்க
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity onPress={onClose} style={trp.closeBtn}>
+          <Ionicons name="close" size={16} color="#ef4444" />
+        </TouchableOpacity>
+      </View>
+      <View style={trp.divider} />
+      <Text style={trp.sectionLabel}>QUICK PRESETS</Text>
+      <View style={trp.presetRow}>
+        {presets.map((p) => {
+          const active = localFrom === p.from && localTo === p.to;
+          return (
+            <TouchableOpacity
+              key={p.label}
+              style={[trp.preset, active && trp.presetActive]}
+              onPress={() => {
+                setLocalFrom(p.from);
+                setLocalTo(p.to);
+                setError("");
+              }}
+            >
+              <Ionicons
+                name={p.icon}
+                size={15}
+                color={active ? "#fff" : "#6366f1"}
+              />
+              <Text style={[trp.presetLabel, active && trp.presetLabelActive]}>
+                {p.label}
+              </Text>
+              <Text style={[trp.presetTime, active && { color: "#c7d2fe" }]}>
+                {p.from}–{p.to}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <Text style={[trp.sectionLabel, { marginTop: 18 }]}>
+        {Platform.OS === "web"
+          ? "TAP CLOCK TO SELECT TIME"
+          : "SCROLL TO SELECT"}
+      </Text>
+      <View style={trp.pickersRow}>
+        {Platform.OS === "web" ? (
+          <>
+            <WebTimePicker
+              label="FROM"
+              color="#6366f1"
+              time={localFrom}
+              onChangeTime={(v) => {
+                setLocalFrom(v);
+                setError("");
+              }}
+            />
+            <View style={trp.arrowWrap}>
+              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
+            </View>
+            <WebTimePicker
+              label="TO"
+              color="#f59e0b"
+              time={localTo}
+              onChangeTime={(v) => {
+                setLocalTo(v);
+                setError("");
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <NativeTimePicker
+              label="FROM"
+              color="#6366f1"
+              time={localFrom}
+              onChangeTime={(v) => {
+                setLocalFrom(v);
+                setError("");
+              }}
+            />
+            <View style={trp.arrowWrap}>
+              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
+            </View>
+            <NativeTimePicker
+              label="TO"
+              color="#f59e0b"
+              time={localTo}
+              onChangeTime={(v) => {
+                setLocalTo(v);
+                setError("");
+              }}
+            />
+          </>
+        )}
+      </View>
+      <View style={trp.preview}>
+        <Ionicons name="time-outline" size={14} color="#6366f1" />
+        <Text style={trp.previewText}>
+          {localFrom} → {localTo}
+        </Text>
+      </View>
+      {error ? (
+        <View style={trp.errorRow}>
+          <Ionicons name="alert-circle" size={13} color="#ef4444" />
+          <Text style={trp.errorText}>{error}</Text>
+        </View>
+      ) : null}
+      <View style={trp.btnRow}>
+        <TouchableOpacity style={trp.clearBtn} onPress={handleClear}>
+          <Ionicons name="refresh" size={14} color="#64748b" />
+          <Text style={trp.clearBtnText}>Clear</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={trp.applyBtnWrap} onPress={handleApply}>
+          <LinearGradient colors={["#6366f1", "#4f46e5"]} style={trp.applyBtn}>
+            <Ionicons name="checkmark-circle" size={16} color="#fff" />
+            <Text style={trp.applyBtnText}>Apply Filter</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  if (Platform.OS === "web") {
+    if (!visible) return null;
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          backgroundColor: "rgba(2,6,23,0.72)",
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "center",
+        }}
+        onMouseDown={onClose}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 600,
+            zIndex: 10000,
+            borderRadius: "34px 34px 0 0",
+            overflow: "hidden",
+            maxHeight: "95vh",
+            overflowY: "auto",
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SheetContent />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View style={trp.overlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={onClose}
+          />
+          <Animated.View
+            style={{ transform: [{ translateY: slideAnim }], width: "100%" }}
+            pointerEvents="box-none"
+          >
+            <SheetContent />
+          </Animated.View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const trp = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(2,6,23,0.72)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    padding: 24,
+    paddingBottom: Platform.OS === "ios" ? 40 : 28,
+  },
+  handle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#e2e8f0",
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  title: { fontSize: 18, fontWeight: "900", color: "#0f172a" },
+  subtitle: { fontSize: 10, color: "#94a3b8", fontWeight: "600", marginTop: 2 },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: "#fef2f2",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  divider: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 18 },
+  sectionLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#cbd5e1",
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  presetRow: { flexDirection: "row", gap: 8 },
+  preset: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 16,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    alignItems: "center",
+    gap: 3,
+  },
+  presetActive: { backgroundColor: "#4f46e5", borderColor: "#4f46e5" },
+  presetLabel: { fontSize: 11, fontWeight: "800", color: "#1e293b" },
+  presetLabelActive: { color: "#fff" },
+  presetTime: { fontSize: 9, color: "#94a3b8", fontWeight: "600" },
+  pickersRow: { flexDirection: "row", alignItems: "flex-start" },
+  arrowWrap: {
+    width: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 100,
+  },
+  preview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#ede9fe",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: "#c7d2fe",
+  },
+  previewText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#4f46e5",
+    letterSpacing: 1,
+  },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+  },
+  errorText: { fontSize: 11, color: "#ef4444", fontWeight: "600" },
+  btnRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+  clearBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 18,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  clearBtnText: { fontSize: 13, fontWeight: "700", color: "#64748b" },
+  applyBtnWrap: { flex: 2, borderRadius: 18, overflow: "hidden" },
+  applyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+  },
+  applyBtnText: { fontSize: 14, fontWeight: "900", color: "#fff" },
+});
+
+// ============================================================
 // ✅ MAIN DASHBOARD
 // ============================================================
 export default function Dashboard() {
@@ -5131,6 +5087,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [isListModalVisible, setIsListModalVisible] = useState(false);
   const [isReportsModalVisible, setIsReportsModalVisible] = useState(false);
+  const [isAttendanceModalVisible, setIsAttendanceModalVisible] =
+    useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [showTimeFilter, setShowTimeFilter] = useState(false);
@@ -5147,6 +5105,7 @@ export default function Dashboard() {
     new Animated.Value(0),
     new Animated.Value(0),
   ]).current;
+
   const [user, setUser] = useState({ name: "", image: null, role: null });
   const [image, setImage] = useState(null);
   const [filterType, setFilterType] = useState("All");
@@ -5157,13 +5116,12 @@ export default function Dashboard() {
     student_list: [],
     selected_date: "",
   });
-  const [isAttendanceModalVisible, setIsAttendanceModalVisible] =
-    useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(60)).current;
   const headerScale = useRef(new Animated.Value(0.95)).current;
 
+  // Session timer
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -5191,9 +5149,9 @@ export default function Dashboard() {
     `${Math.floor(s / 60)}:${s % 60 < 10 ? "0" : ""}${s % 60}`;
 
   const formatDate = (date) => {
-    const y = date.getFullYear(),
-      m = String(date.getMonth() + 1).padStart(2, "0"),
-      d = String(date.getDate()).padStart(2, "0");
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
@@ -5207,12 +5165,12 @@ export default function Dashboard() {
       const token = await AsyncStorage.getItem("token");
       let url = `/dashboard-stats/?date=${dateStr}`;
       if (ft && tt) url += `&from_time=${ft}&to_time=${tt}`;
-      const res = await axios.get(url, {
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data.status.code === 200) setStats(res.data.data);
-    } catch (err) {
-      if (err.response?.status === 401) {
+      if (response.data.status.code === 200) setStats(response.data.data);
+    } catch (error) {
+      if (error.response?.status === 401) {
         await AsyncStorage.multiRemove(["token", "user_data"]);
         showAlert("Session Expired", "Please login again.", [
           { text: "OK", onPress: () => router.replace("/login") },
@@ -5241,10 +5199,10 @@ export default function Dashboard() {
   };
 
   const changeDate = (days) => {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() + days);
-    d.setHours(12, 0, 0, 0);
-    setCurrentDate(d);
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + days);
+    newDate.setHours(12, 0, 0, 0);
+    setCurrentDate(newDate);
   };
 
   const filteredList = (stats.student_list || []).filter((item) => {
@@ -5309,14 +5267,14 @@ export default function Dashboard() {
           const baseUrl = axios.defaults.baseURL.endsWith("/")
             ? axios.defaults.baseURL.split("/api")[0]
             : axios.defaults.baseURL.replace("/api", "");
-          let img = null;
+          let fullImage = null;
           if (data.profile) {
-            img = data.profile.startsWith("http")
+            fullImage = data.profile.startsWith("http")
               ? data.profile
               : `${baseUrl}${data.profile}`;
           }
-          setUser({ name: data.name, image: img, role: data.role });
-          setImage(img);
+          setUser({ name: data.name, image: fullImage, role: data.role });
+          setImage(fullImage);
         }
       });
     }, []),
@@ -5346,76 +5304,88 @@ export default function Dashboard() {
           const token = await AsyncStorage.getItem("token");
           const localUri =
             FileSystem.cacheDirectory + "tmp_photo_" + Date.now() + ".jpg";
-          const result = await FileSystem.downloadAsync(url, localUri, {
+          const downloadResult = await FileSystem.downloadAsync(url, localUri, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          if (result.status !== 200) return null;
-          const b64 = await FileSystem.readAsStringAsync(result.uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          return `data:image/jpeg;base64,${b64}`;
+          if (downloadResult.status !== 200) return null;
+          const base64 = await FileSystem.readAsStringAsync(
+            downloadResult.uri,
+            {
+              encoding: FileSystem.EncodingType.Base64,
+            },
+          );
+          return `data:image/jpeg;base64,${base64}`;
         } catch {
           return null;
         }
       };
 
-      let swp;
+      let studentsWithPhoto;
       if (Platform.OS === "ios") {
-        swp = await Promise.all(
+        studentsWithPhoto = await Promise.all(
           fullList.map(async (s) => ({
             ...s,
             b64: await toBase64iOS(s.photo),
           })),
         );
       } else if (Platform.OS === "web") {
-        swp = fullList.map((s) => ({ ...s, b64: s.photo || null }));
+        studentsWithPhoto = fullList.map((s) => ({
+          ...s,
+          b64: s.photo || null,
+        }));
       } else {
         const toBase64 = async (url) => {
           try {
             if (!url) return null;
-            const r = await fetch(url, { cache: "no-cache", mode: "cors" });
-            if (!r.ok) return null;
-            const blob = await r.blob();
-            return await new Promise((res, rej) => {
-              const rd = new FileReader();
-              rd.onloadend = () => res(rd.result);
-              rd.onerror = rej;
-              rd.readAsDataURL(blob);
+            const response = await fetch(url, {
+              cache: "no-cache",
+              mode: "cors",
+            });
+            if (!response.ok) return null;
+            const blob = await response.blob();
+            return await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
             });
           } catch {
             return null;
           }
         };
-        swp = await Promise.all(
+        studentsWithPhoto = await Promise.all(
           fullList.map(async (s) => ({ ...s, b64: await toBase64(s.photo) })),
         );
       }
 
-      const nList = swp
+      const normalWithPhoto = studentsWithPhoto
         .filter((i) => i.n_status === "P")
         .sort((a, b) => a.name.localeCompare(b.name));
-      const sList = swp
+      const specialWithPhoto = studentsWithPhoto
         .filter((i) => i.is_special && i.s_status === "P")
         .sort((a, b) => a.name.localeCompare(b.name));
-      const ph = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><circle cx='15' cy='15' r='15' fill='%23e2e8f0'/><circle cx='15' cy='12' r='5' fill='%2394a3b8'/><ellipse cx='15' cy='24' rx='8' ry='5' fill='%2394a3b8'/></svg>`;
+
+      const placeholderSVG = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><circle cx='15' cy='15' r='15' fill='%23e2e8f0'/><circle cx='15' cy='12' r='5' fill='%2394a3b8'/><ellipse cx='15' cy='24' rx='8' ry='5' fill='%2394a3b8'/></svg>`;
       const isIOS = Platform.OS === "ios";
 
-      const buildRows = (list, isSpl) =>
+      const buildRows = (list, isSpecial) =>
         list
           .map((item, i) => {
-            const src = item.b64 || ph;
+            const imgSrc = item.b64 || placeholderSVG;
             const photoCell = isIOS
-              ? `<div style="width:30px;height:30px;border-radius:15px;background-image:url('${src}');background-size:cover;background-position:center;background-color:#e2e8f0;display:inline-block;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>`
-              : `<img src="${src}" style="width:30px;height:30px;border-radius:15px;object-fit:cover;" onerror="this.src='${ph}'"/>`;
-            const sc = isSpl
+              ? `<div style="width:30px;height:30px;border-radius:15px;background-image:url('${imgSrc}');background-size:cover;background-position:center;background-color:#e2e8f0;display:inline-block;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>`
+              : `<img src="${imgSrc}" style="width:30px;height:30px;border-radius:15px;object-fit:cover;" onerror="this.src='${placeholderSVG}'"/>`;
+            const statusClass = isSpecial
               ? item.s_status === "P"
                 ? "status-p"
                 : "status-a"
               : item.n_status === "P"
                 ? "status-p"
                 : "status-a";
-            const st = isSpl ? item.s_status || "-" : item.n_status || "-";
-            return `<tr><td>${i + 1}</td><td>${photoCell}</td><td class="name-col">${item.name}</td><td class="${sc}">${st}</td></tr>`;
+            const statusText = isSpecial
+              ? item.s_status || "-"
+              : item.n_status || "-";
+            return `<tr><td>${i + 1}</td><td>${photoCell}</td><td class="name-col">${item.name}</td><td class="${statusClass}">${statusText}</td></tr>`;
           })
           .join("");
 
@@ -5423,7 +5393,9 @@ export default function Dashboard() {
         ? `<p style="text-align:center;margin:2px 0;font-size:12px;color:#6366f1;font-weight:700;">⏱ Time Filter: ${fromTime} – ${toTime}</p>`
         : "";
 
-      const html = `<html><head><meta charset="UTF-8"/><style>
+      const htmlContent = `
+      <html><head><meta charset="UTF-8"/>
+      <style>
         body{font-family:Helvetica,sans-serif;padding:20px;color:#1e293b;}
         .title{font-size:24px;font-weight:bold;color:#1e3a8a;text-align:center;}
         .summary-banner{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 16px;margin:10px 0 6px;text-align:center;}
@@ -5444,38 +5416,44 @@ export default function Dashboard() {
       <div class="title">BSC Cricket Academy</div>
       <p style="text-align:center;margin:4px 0;">Daily Attendance Report — ${formatDate(currentDate)}</p>
       ${tfNote}
-      <div class="summary-banner"><div class="summary-banner-label">TOTAL PRESENT STUDENTS</div><div class="summary-banner-count">${totalUniquePresent}</div></div>
+      <div class="summary-banner">
+        <div class="summary-banner-label">TOTAL PRESENT STUDENTS</div>
+        <div class="summary-banner-count">${totalUniquePresent}</div>
+      </div>
       <div class="stats-container">
         <div class="card normal-card"><b>NORMAL CLASS</b><br/>Total: ${normalStats.total}&nbsp;&nbsp;P: <span class="status-p">${normalStats.present}</span>&nbsp;&nbsp;A: <span class="status-a">${normalStats.absent}</span></div>
         <div class="card special-card"><b>SPECIAL CLASS</b><br/>Total: ${specialStats.total}&nbsp;&nbsp;P: <span class="status-p">${specialStats.s_p}</span>&nbsp;&nbsp;A: <span class="status-a">${specialStats.s_a}</span></div>
       </div>
-      ${nList.length > 0 ? `<h3 style="color:#1e3a8a;border-bottom:1px solid #1e3a8a;">Normal Class (${nList.length})</h3><table><thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead><tbody>${buildRows(nList, false)}</tbody></table>` : ""}
-      ${sList.length > 0 ? `<h3 style="color:#f59e0b;border-bottom:1px solid #f59e0b;">Special Class (${sList.length})</h3><table><thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead><tbody>${buildRows(sList, true)}</tbody></table>` : ""}
+      ${normalWithPhoto.length > 0 ? `<h3 style="color:#1e3a8a;border-bottom:1px solid #1e3a8a;">Normal Class (${normalWithPhoto.length})</h3><table><thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead><tbody>${buildRows(normalWithPhoto, false)}</tbody></table>` : ""}
+      ${specialWithPhoto.length > 0 ? `<h3 style="color:#f59e0b;border-bottom:1px solid #f59e0b;">Special Class (${specialWithPhoto.length})</h3><table><thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead><tbody>${buildRows(specialWithPhoto, true)}</tbody></table>` : ""}
       </body></html>`;
 
       if (Platform.OS === "web") {
-        const pw = window.open("", "_blank");
-        if (pw) {
-          pw.document.write(html);
-          pw.document.close();
-          pw.onload = () =>
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          printWindow.onload = () =>
             setTimeout(() => {
-              pw.focus();
-              pw.print();
-              pw.onafterprint = () => pw.close();
+              printWindow.focus();
+              printWindow.print();
+              printWindow.onafterprint = () => printWindow.close();
             }, 800);
         }
       } else if (Platform.OS === "ios") {
-        await Print.printAsync({ html });
+        await Print.printAsync({ html: htmlContent });
       } else {
-        const { uri } = await Print.printToFileAsync({ html, base64: false });
+        const { uri } = await Print.printToFileAsync({
+          html: htmlContent,
+          base64: false,
+        });
         await Sharing.shareAsync(uri, {
           UTI: ".pdf",
           mimeType: "application/pdf",
         });
       }
-    } catch (err) {
-      showAlert("PDF Error", `Error: ${err.message}`, [{ text: "OK" }]);
+    } catch (error) {
+      showAlert("PDF Error", `Error: ${error.message}`, [{ text: "OK" }]);
     }
   };
 
@@ -5497,6 +5475,7 @@ export default function Dashboard() {
       label: "Special Training",
     },
   ];
+
   const reportItems = [
     {
       route: "/Monthlyattendance",
@@ -5532,6 +5511,17 @@ export default function Dashboard() {
       <StatusBar barStyle="light-content" />
       <Stack.Screen options={{ headerShown: false }} />
 
+      {/* ✅ NATIVE CALENDAR — works same as first code */}
+      {Platform.OS !== "web" && (
+        <CustomCalendar
+          visible={showCalendar}
+          currentDate={currentDate}
+          onClose={() => setShowCalendar(false)}
+          onSelectDate={(date) => setCurrentDate(date)}
+        />
+      )}
+
+      {/* Time Range Picker */}
       <TimeRangePickerModal
         visible={showTimeFilter}
         fromTime={fromTime}
@@ -5547,12 +5537,14 @@ export default function Dashboard() {
         onClose={() => setShowTimeFilter(false)}
       />
 
+      {/* ✅ ATTENDANCE LIST MODAL — setCurrentDate prop passed */}
       <AttendanceListModal
         visible={isListModalVisible}
         onClose={() => setIsListModalVisible(false)}
         filterType={filterType}
         setFilterType={setFilterType}
         currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
         formatDate={formatDate}
         changeDate={changeDate}
         showCalendar={showCalendar}
@@ -5567,16 +5559,7 @@ export default function Dashboard() {
         downloadPDF={downloadPDF}
       />
 
-      {Platform.OS !== "web" && (
-        <CustomCalendar
-          visible={showCalendar}
-          currentDate={currentDate}
-          onClose={() => setShowCalendar(false)}
-          onSelectDate={(d) => setCurrentDate(d)}
-        />
-      )}
-
-      {/* HEADER */}
+      {/* ─── HEADER ─── */}
       <LinearGradient
         colors={["#020617", "#0c1a3a", "#1e3a8a"]}
         style={styles.headerGradient}
@@ -5645,7 +5628,7 @@ export default function Dashboard() {
         <Animated.View
           style={{ opacity: fadeAnim, transform: [{ translateY: slideUp }] }}
         >
-          {/* HERO CARD */}
+          {/* ─── HERO CARD ─── */}
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => setIsListModalVisible(true)}
@@ -5759,7 +5742,7 @@ export default function Dashboard() {
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* MANAGEMENT HUB */}
+          {/* ─── MANAGEMENT HUB ─── */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Management Hub</Text>
             <View style={styles.sectionAccent} />
@@ -5789,6 +5772,7 @@ export default function Dashboard() {
               </TouchableOpacity>
             )}
 
+            {/* Attendance Card */}
             <TouchableOpacity
               style={styles.reportsCard}
               onPress={openAttendanceModal}
@@ -5892,6 +5876,7 @@ export default function Dashboard() {
               </View>
             </TouchableOpacity>
 
+            {/* Reports Card */}
             <TouchableOpacity
               style={styles.reportsCard}
               onPress={openReportsModal}
@@ -5992,7 +5977,7 @@ export default function Dashboard() {
         </Animated.View>
       </ScrollView>
 
-      {/* ATTENDANCE TYPE MODAL */}
+      {/* ─── ATTENDANCE TYPE MODAL ─── */}
       <Modal
         animationType="fade"
         transparent
@@ -6101,7 +6086,7 @@ export default function Dashboard() {
         </TouchableOpacity>
       </Modal>
 
-      {/* REPORTS MODAL */}
+      {/* ─── REPORTS MODAL ─── */}
       <Modal
         animationType="fade"
         transparent
@@ -6208,6 +6193,9 @@ export default function Dashboard() {
   );
 }
 
+// ============================================================
+// ✅ STYLES
+// ============================================================
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
   headerGradient: {
