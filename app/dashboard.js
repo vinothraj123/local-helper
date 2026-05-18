@@ -3272,10 +3272,8 @@ import {
   Animated,
   Dimensions,
   Image,
-  Keyboard,
   Modal,
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -3429,7 +3427,7 @@ const drum = StyleSheet.create({
 });
 
 // ── Native Time Picker Block ──────────────────────────────────
-function NativeTimePicker({ label, color, time, onChangeTime }) {
+function NativeTimePicker({ label, color, time, onChangeTime, onFocusChange }) {
   const hours = Array.from({ length: 24 }, (_, i) =>
     String(i).padStart(2, "0"),
   );
@@ -3697,29 +3695,15 @@ function TimeRangePickerModal({
   const [localFrom, setLocalFrom] = useState(fromTime || "06:00");
   const [localTo, setLocalTo] = useState(toTime || "09:00");
   const [error, setError] = useState("");
-  const slideAnim = useRef(new Animated.Value(height)).current;
+  // Track if any input is focused — block modal dismiss while keyboard open
+  const inputFocused = useRef(false);
 
   useEffect(() => {
     if (visible) {
       setLocalFrom(fromTime || "06:00");
       setLocalTo(toTime || "09:00");
       setError("");
-      if (Platform.OS !== "web") {
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 80,
-          friction: 12,
-          useNativeDriver: true,
-        }).start();
-      }
-    } else {
-      if (Platform.OS !== "web") {
-        Animated.timing(slideAnim, {
-          toValue: height,
-          duration: 220,
-          useNativeDriver: true,
-        }).start();
-      }
+      inputFocused.current = false;
     }
   }, [visible]);
 
@@ -3762,6 +3746,7 @@ function TimeRangePickerModal({
     { label: "Evening", from: "15:00", to: "20:00", icon: "moon-outline" },
   ];
 
+  // ── Shared sheet UI ───────────────────────────────────────
   const SheetContent = () => (
     <View style={trp.sheet}>
       <View style={trp.handle} />
@@ -3790,7 +3775,7 @@ function TimeRangePickerModal({
       <View style={trp.divider} />
 
       {/* Presets */}
-      <Text style={trp.sectionLabel}>QUICK PR</Text>
+      <Text style={trp.sectionLabel}>QUI</Text>
       <View style={trp.presetRow}>
         {presets.map((p) => {
           const active = localFrom === p.from && localTo === p.to;
@@ -3860,6 +3845,9 @@ function TimeRangePickerModal({
                 setLocalFrom(v);
                 setError("");
               }}
+              onFocusChange={(f) => {
+                inputFocused.current = f;
+              }}
             />
             <View style={trp.arrowWrap}>
               <Ionicons name="arrow-forward" size={16} color="#6366f1" />
@@ -3871,6 +3859,9 @@ function TimeRangePickerModal({
               onChangeTime={(v) => {
                 setLocalTo(v);
                 setError("");
+              }}
+              onFocusChange={(f) => {
+                inputFocused.current = f;
               }}
             />
           </>
@@ -3909,7 +3900,7 @@ function TimeRangePickerModal({
     </View>
   );
 
-  // WEB
+  // ── WEB ──────────────────────────────────────────────────
   if (Platform.OS === "web") {
     if (!visible) return null;
     return (
@@ -3942,36 +3933,22 @@ function TimeRangePickerModal({
     );
   }
 
-  // NATIVE
+  // ── NATIVE ────────────────────────────────────────────────
+  // Key fix: NO outside-tap-to-close overlay at all.
+  // Modal closes ONLY via the X button or Apply/Clear.
+  // This 100% prevents keyboard-open triggering close.
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="none"
+      animationType="slide"
       onRequestClose={onClose}
       statusBarTranslucent
     >
       <View style={trp.overlay}>
-        {/* ✅ Pressable overlay — only dismiss when keyboard is NOT open */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => {
-            const isKeyboardVisible = Keyboard.isVisible?.() ?? false;
-            if (isKeyboardVisible) {
-              Keyboard.dismiss();
-            } else {
-              onClose();
-            }
-          }}
-        />
-        {/* ✅ Sheet — pointerEvents="box-none" removed, use plain View */}
-        <Animated.View
-          style={{ transform: [{ translateY: slideAnim }], width: "100%" }}
-        >
-          <Pressable onPress={() => {}}>
-            <SheetContent />
-          </Pressable>
-        </Animated.View>
+        <View style={trp.sheetWrapper}>
+          <SheetContent />
+        </View>
       </View>
     </Modal>
   );
@@ -3982,7 +3959,10 @@ const trp = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(2,6,23,0.72)",
     justifyContent: "flex-end",
-    alignItems: "stretch",
+  },
+  // Native sheet sits at bottom, no tap-outside-to-close
+  sheetWrapper: {
+    width: "100%",
   },
   sheet: {
     backgroundColor: "#fff",
