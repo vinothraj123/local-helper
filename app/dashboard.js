@@ -3493,6 +3493,12 @@ const ntp = StyleSheet.create({
 function WebTimePicker({ label, color, time, onChangeTime }) {
   const [h, m] = time ? time.split(":") : ["", ""];
 
+  const stop = (e) => {
+    e.stopPropagation();
+    // Also prevent the event reaching the backdrop
+    if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation?.();
+  };
+
   const handleH = (e) => {
     let v = e.target.value.replace(/\D/g, "").slice(0, 2);
     if (v !== "" && parseInt(v) > 23) v = "23";
@@ -3519,6 +3525,15 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
     cursor: "text",
     WebkitAppearance: "none",
     MozAppearance: "textfield",
+    // Prevent iOS zoom on focus
+    fontSize: "22px",
+    touchAction: "manipulation",
+  };
+
+  // Prevent ALL touch/mouse events from reaching backdrop
+  const blockAll = (e) => {
+    e.stopPropagation();
+    e.preventDefault && e.type === "touchstart" ? null : null;
   };
 
   return (
@@ -3535,6 +3550,7 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
       }}
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       <div
@@ -3591,14 +3607,18 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
             HH
           </span>
           <input
-            type="number"
-            min="0"
-            max="23"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={2}
             value={h}
             onChange={handleH}
             placeholder="--"
-            onTouchStart={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
             style={inputStyle}
           />
         </div>
@@ -3631,14 +3651,18 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
             MM
           </span>
           <input
-            type="number"
-            min="0"
-            max="59"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={2}
             value={m}
             onChange={handleM}
             placeholder="--"
-            onTouchStart={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
             style={inputStyle}
           />
         </div>
@@ -3649,6 +3673,7 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
             key={min}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onChangeTime(`${h || "06"}:${min}`);
@@ -3663,6 +3688,7 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
               border: "none",
               borderRadius: 8,
               cursor: "pointer",
+              touchAction: "manipulation",
             }}
           >
             :{min}
@@ -3767,7 +3793,7 @@ function TimeRangePickerModal({
       <View style={trp.divider} />
 
       {/* Presets */}
-      <Text style={trp.sectionLabel}>Q</Text>
+      <Text style={trp.sectionLabel}>QUICK P</Text>
       <View style={trp.presetRow}>
         {presets.map((p) => {
           const active = localFrom === p.from && localTo === p.to;
@@ -3895,33 +3921,44 @@ function TimeRangePickerModal({
   // ── WEB ──────────────────────────────────────────────────
   if (Platform.OS === "web") {
     if (!visible) return null;
-    const handleBackdrop = (e) => {
-      if (e.target === e.currentTarget) onClose();
-    };
     return (
       <div
         style={{
           position: "fixed",
-          inset: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          // Use dvh so keyboard open doesn't shrink backdrop height
+          height: "100dvh",
           zIndex: 9999,
           backgroundColor: "rgba(2,6,23,0.72)",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "center",
+          // No flex/alignItems — sheet is independently fixed
         }}
-        onMouseDown={handleBackdrop}
-        onTouchStart={handleBackdrop}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+        onTouchEnd={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
+        {/* Sheet fixed at bottom — completely unaffected by keyboard/viewport resize */}
         <div
           style={{
-            width: "100%",
-            maxWidth: 520,
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
             zIndex: 10000,
             borderRadius: "34px 34px 0 0",
-            overflow: "hidden",
+            overflow: "visible",
+            maxWidth: 520,
+            margin: "0 auto",
+            backgroundColor: "#fff",
+            // Prevent touch events reaching backdrop
           }}
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
           <SheetContent />
