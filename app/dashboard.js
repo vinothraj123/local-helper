@@ -3790,7 +3790,7 @@ function TimeRangePickerModal({
       <View style={trp.divider} />
 
       {/* Presets */}
-      <Text style={trp.sectionLabel}>QUICK PRESETS</Text>
+      <Text style={trp.sectionLabel}>QUICK PR</Text>
       <View style={trp.presetRow}>
         {presets.map((p) => {
           const active = localFrom === p.from && localTo === p.to;
