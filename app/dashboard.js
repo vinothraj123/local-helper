@@ -3308,156 +3308,100 @@ const showAlert = (title, message, buttons) => {
 };
 
 // ============================================================
-// ✅ DRUM SCROLL PICKER (Native only)
-// ============================================================
-const ITEM_HEIGHT = 48;
-const VISIBLE_ITEMS = 5;
-const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+// ── Native Time Picker — Stepper (NO TextInput, NO keyboard) ─
+function NativeTimePicker({ label, color, time, onChangeTime, onFocusChange }) {
+  const [h, m] = time ? time.split(":") : ["06", "00"];
+  const hNum = parseInt(h, 10);
+  const mNum = parseInt(m, 10);
 
-function DrumPicker({ values, selected, onChange, pickerWidth = 80 }) {
-  const scrollRef = useRef(null);
-  const selectedIndex = values.indexOf(selected);
+  const pad = (n) => String(n).padStart(2, "0");
 
-  useEffect(() => {
-    if (scrollRef.current && selectedIndex >= 0) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({
-          y: selectedIndex * ITEM_HEIGHT,
-          animated: false,
-        });
-      }, 80);
-    }
-  }, []);
-
-  const handleMomentumEnd = (e) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, values.length - 1));
-    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
-    onChange(values[clamped]);
+  const changeH = (delta) => {
+    const next = (hNum + delta + 24) % 24;
+    onChangeTime(`${pad(next)}:${m}`);
+  };
+  const changeM = (delta) => {
+    const next = (mNum + delta + 60) % 60;
+    onChangeTime(`${h}:${pad(next)}`);
   };
 
-  const handleScroll = (e) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, values.length - 1));
-    if (values[clamped] !== selected) onChange(values[clamped]);
-  };
+  // Quick minute jumps
+  const mPresets = [0, 15, 30, 45];
 
   return (
-    <View
-      style={[
-        drum.container,
-        pickerWidth ? { width: pickerWidth } : { flex: 1 },
-      ]}
-    >
-      <View style={drum.selectorHighlight} pointerEvents="none" />
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        onScroll={handleScroll}
-        onMomentumScrollEnd={handleMomentumEnd}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-      >
-        {values.map((val, i) => {
-          const isSelected = val === selected;
+    <View style={ntp.wrapper}>
+      {/* Label row */}
+      <View style={[ntp.labelRow, { borderLeftColor: color }]}>
+        <Text style={[ntp.label, { color }]}>{label}</Text>
+        <Text style={[ntp.timeDisplay, { color }]}>
+          {h}:{m}
+        </Text>
+      </View>
+
+      {/* HH : MM steppers */}
+      <View style={ntp.stepRow}>
+        {/* Hour stepper */}
+        <View style={ntp.stepCol}>
+          <TouchableOpacity
+            style={[ntp.stepBtn, { borderColor: color }]}
+            onPress={() => changeH(1)}
+          >
+            <Ionicons name="chevron-up" size={20} color={color} />
+          </TouchableOpacity>
+          <View style={[ntp.stepValueBox, { borderColor: color }]}>
+            <Text style={[ntp.stepValue, { color }]}>{h}</Text>
+            <Text style={ntp.stepUnit}>HH</Text>
+          </View>
+          <TouchableOpacity
+            style={[ntp.stepBtn, { borderColor: color }]}
+            onPress={() => changeH(-1)}
+          >
+            <Ionicons name="chevron-down" size={20} color={color} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={ntp.colon}>:</Text>
+
+        {/* Minute stepper */}
+        <View style={ntp.stepCol}>
+          <TouchableOpacity
+            style={[ntp.stepBtn, { borderColor: color }]}
+            onPress={() => changeM(1)}
+          >
+            <Ionicons name="chevron-up" size={20} color={color} />
+          </TouchableOpacity>
+          <View style={[ntp.stepValueBox, { borderColor: color }]}>
+            <Text style={[ntp.stepValue, { color }]}>{m}</Text>
+            <Text style={ntp.stepUnit}>MM</Text>
+          </View>
+          <TouchableOpacity
+            style={[ntp.stepBtn, { borderColor: color }]}
+            onPress={() => changeM(-1)}
+          >
+            <Ionicons name="chevron-down" size={20} color={color} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Quick minute buttons */}
+      <View style={ntp.mPresetRow}>
+        {mPresets.map((min) => {
+          const active = mNum === min;
           return (
             <TouchableOpacity
-              key={i}
-              style={[drum.item, { height: ITEM_HEIGHT }]}
-              onPress={() => {
-                scrollRef.current?.scrollTo({
-                  y: i * ITEM_HEIGHT,
-                  animated: true,
-                });
-                onChange(val);
-              }}
-              activeOpacity={0.7}
+              key={min}
+              style={[
+                ntp.mPresetBtn,
+                active && { backgroundColor: color, borderColor: color },
+              ]}
+              onPress={() => onChangeTime(`${h}:${pad(min)}`)}
             >
-              <Text
-                style={[drum.itemText, isSelected && drum.itemTextSelected]}
-              >
-                {val}
+              <Text style={[ntp.mPresetText, active && { color: "#fff" }]}>
+                :{pad(min)}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
-    </View>
-  );
-}
-
-const drum = StyleSheet.create({
-  container: {
-    height: PICKER_HEIGHT,
-    overflow: "hidden",
-    position: "relative",
-    minWidth: 60,
-  },
-  selectorHighlight: {
-    position: "absolute",
-    top: ITEM_HEIGHT * 2,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: "#6366f1",
-    zIndex: 10,
-    borderRadius: 0,
-  },
-  item: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  itemText: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#cbd5e1",
-    letterSpacing: 1,
-  },
-  itemTextSelected: {
-    color: "#0f172a",
-    fontWeight: "900",
-    fontSize: 26,
-  },
-});
-
-// ── Native Time Picker Block ──────────────────────────────────
-function NativeTimePicker({ label, color, time, onChangeTime, onFocusChange }) {
-  const hours = Array.from({ length: 24 }, (_, i) =>
-    String(i).padStart(2, "0"),
-  );
-  const minutes = Array.from({ length: 60 }, (_, i) =>
-    String(i).padStart(2, "0"),
-  );
-  const [h, m] = time ? time.split(":") : ["06", "00"];
-
-  return (
-    <View style={ntp.wrapper}>
-      <View style={[ntp.labelRow, { borderLeftColor: color }]}>
-        <Text style={[ntp.label, { color }]}>{label}</Text>
-        <Text style={ntp.timeDisplay}>
-          {h}:{m}
-        </Text>
-      </View>
-      <View style={ntp.pickerRow}>
-        <DrumPicker
-          values={hours}
-          selected={h}
-          onChange={(val) => onChangeTime(`${val}:${m}`)}
-          pickerWidth={null}
-        />
-        <Text style={ntp.colon}>:</Text>
-        <DrumPicker
-          values={minutes}
-          selected={m}
-          onChange={(val) => onChangeTime(`${h}:${val}`)}
-          pickerWidth={null}
-        />
       </View>
     </View>
   );
@@ -3472,35 +3416,77 @@ const ntp = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
     overflow: "hidden",
+    alignItems: "center",
   },
   labelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    width: "100%",
+    marginBottom: 10,
     paddingLeft: 8,
     borderLeftWidth: 3,
   },
   label: { fontSize: 10, fontWeight: "900", letterSpacing: 1.5 },
-  timeDisplay: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#1e293b",
-    letterSpacing: 1,
-  },
-  pickerRow: {
+  timeDisplay: { fontSize: 15, fontWeight: "900", letterSpacing: 1 },
+  stepRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    flex: 1,
+    gap: 6,
+    marginBottom: 10,
+  },
+  stepCol: {
+    alignItems: "center",
+    gap: 4,
+  },
+  stepBtn: {
+    width: 38,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stepValueBox: {
+    width: 52,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 2,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stepValue: { fontSize: 22, fontWeight: "900", letterSpacing: 1 },
+  stepUnit: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#94a3b8",
+    letterSpacing: 1,
   },
   colon: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "900",
     color: "#e2e8f0",
-    marginHorizontal: 4,
     marginBottom: 4,
+    marginHorizontal: 2,
   },
+  mPresetRow: {
+    flexDirection: "row",
+    gap: 4,
+    width: "100%",
+  },
+  mPresetBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+  },
+  mPresetText: { fontSize: 10, fontWeight: "800", color: "#64748b" },
 });
 
 // ── Web Time Picker ───────────────────────────────────────────
@@ -3775,7 +3761,7 @@ function TimeRangePickerModal({
       <View style={trp.divider} />
 
       {/* Presets */}
-      <Text style={trp.sectionLabel}>QUI</Text>
+      <Text style={trp.sectionLabel}>QUICK PRES</Text>
       <View style={trp.presetRow}>
         {presets.map((p) => {
           const active = localFrom === p.from && localTo === p.to;
@@ -3807,7 +3793,7 @@ function TimeRangePickerModal({
 
       {/* Pickers */}
       <Text style={[trp.sectionLabel, { marginTop: 18 }]}>
-        {Platform.OS === "web" ? "ENTER TIME" : "SCROLL TO SELECT"}
+        {Platform.OS === "web" ? "ENTER TIME" : "TAP TO ADJUST TIME"}
       </Text>
 
       <View style={trp.pickersRow}>
@@ -3934,14 +3920,13 @@ function TimeRangePickerModal({
   }
 
   // ── NATIVE ────────────────────────────────────────────────
-  // Key fix: NO outside-tap-to-close overlay at all.
-  // Modal closes ONLY via the X button or Apply/Clear.
-  // This 100% prevents keyboard-open triggering close.
+  // NO TextInput anywhere → NO keyboard → NO dismiss issue
+  // Close only via X button / Apply / Clear
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
     >
