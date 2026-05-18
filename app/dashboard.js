@@ -11,7 +11,6 @@ import {
   Animated,
   Dimensions,
   Image,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   RefreshControl,
@@ -24,7 +23,7 @@ import {
 } from "react-native";
 import axios from "../axios";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 const showAlert = (title, message, buttons) => {
   if (Platform.OS === "web") {
@@ -32,15 +31,15 @@ const showAlert = (title, message, buttons) => {
     if (hasConfirm) {
       const confirmed = window.confirm(`${title}\n\n${message}`);
       if (confirmed) {
-        const d = buttons.find(
+        const destructiveBtn = buttons.find(
           (b) => b.style === "destructive" || b.text === "Logout",
         );
-        if (d?.onPress) d.onPress();
+        if (destructiveBtn?.onPress) destructiveBtn.onPress();
       }
     } else {
       window.alert(`${title}\n\n${message}`);
-      const ok = buttons?.find((b) => b.onPress);
-      if (ok?.onPress) ok.onPress();
+      const okBtn = buttons?.find((b) => b.onPress);
+      if (okBtn?.onPress) okBtn.onPress();
     }
   } else {
     Alert.alert(title, message, buttons);
@@ -48,796 +47,12 @@ const showAlert = (title, message, buttons) => {
 };
 
 // ============================================================
-// ✅ DRUM SCROLL PICKER (Native only)
-// ============================================================
-const ITEM_HEIGHT = 48;
-const VISIBLE_ITEMS = 5;
-const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
-
-function DrumPicker({ values, selected, onChange, pickerWidth = 80 }) {
-  const scrollRef = useRef(null);
-  const selectedIndex = values.indexOf(selected);
-
-  useEffect(() => {
-    if (scrollRef.current && selectedIndex >= 0) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({
-          y: selectedIndex * ITEM_HEIGHT,
-          animated: false,
-        });
-      }, 80);
-    }
-  }, []);
-
-  const handleMomentumEnd = (e) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, values.length - 1));
-    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
-    onChange(values[clamped]);
-  };
-
-  const handleScroll = (e) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, values.length - 1));
-    if (values[clamped] !== selected) onChange(values[clamped]);
-  };
-
-  return (
-    <View style={[drum.container, { width: pickerWidth }]}>
-      <View style={drum.selectorHighlight} pointerEvents="none" />
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        onScroll={handleScroll}
-        onMomentumScrollEnd={handleMomentumEnd}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-      >
-        {values.map((val, i) => {
-          const isSelected = val === selected;
-          return (
-            <TouchableOpacity
-              key={i}
-              style={[drum.item, { height: ITEM_HEIGHT }]}
-              onPress={() => {
-                scrollRef.current?.scrollTo({
-                  y: i * ITEM_HEIGHT,
-                  animated: true,
-                });
-                onChange(val);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[drum.itemText, isSelected && drum.itemTextSelected]}
-              >
-                {val}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
-const drum = StyleSheet.create({
-  container: {
-    height: PICKER_HEIGHT,
-    overflow: "hidden",
-    position: "relative",
-  },
-  selectorHighlight: {
-    position: "absolute",
-    top: ITEM_HEIGHT * 2,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: "#6366f1",
-    zIndex: 10,
-    borderRadius: 0,
-  },
-  item: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  itemText: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#cbd5e1",
-    letterSpacing: 1,
-  },
-  itemTextSelected: {
-    color: "#0f172a",
-    fontWeight: "900",
-    fontSize: 26,
-  },
-});
-
-// ── Native Time Picker Block ──────────────────────────────────
-function NativeTimePicker({ label, color, time, onChangeTime }) {
-  const hours = Array.from({ length: 24 }, (_, i) =>
-    String(i).padStart(2, "0"),
-  );
-  const minutes = Array.from({ length: 60 }, (_, i) =>
-    String(i).padStart(2, "0"),
-  );
-  const [h, m] = time ? time.split(":") : ["06", "00"];
-  const pickerW = Math.floor((width - 96) / 2 - 28);
-
-  return (
-    <View style={ntp.wrapper}>
-      <View style={[ntp.labelRow, { borderLeftColor: color }]}>
-        <Text style={[ntp.label, { color }]}>{label}</Text>
-        <Text style={ntp.timeDisplay}>
-          {h}:{m}
-        </Text>
-      </View>
-      <View style={ntp.pickerRow}>
-        <DrumPicker
-          values={hours}
-          selected={h}
-          onChange={(val) => onChangeTime(`${val}:${m}`)}
-          pickerWidth={pickerW}
-        />
-        <Text style={ntp.colon}>:</Text>
-        <DrumPicker
-          values={minutes}
-          selected={m}
-          onChange={(val) => onChangeTime(`${h}:${val}`)}
-          pickerWidth={pickerW}
-        />
-      </View>
-    </View>
-  );
-}
-
-const ntp = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: "#f8fafc",
-    borderRadius: 20,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  labelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-    paddingLeft: 8,
-    borderLeftWidth: 3,
-  },
-  label: { fontSize: 10, fontWeight: "900", letterSpacing: 1.5 },
-  timeDisplay: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#1e293b",
-    letterSpacing: 1,
-  },
-  pickerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  colon: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#e2e8f0",
-    marginHorizontal: 4,
-    marginBottom: 4,
-  },
-});
-
-// ── Web Time Picker ───────────────────────────────────────────
-function WebTimePicker({ label, color, time, onChangeTime }) {
-  const [h, m] = time ? time.split(":") : ["", ""];
-
-  const handleH = (e) => {
-    let v = e.target.value.replace(/\D/g, "").slice(0, 2);
-    if (v !== "" && parseInt(v) > 23) v = "23";
-    onChangeTime(`${v.padStart(2, "0")}:${m || "00"}`);
-  };
-  const handleM = (e) => {
-    let v = e.target.value.replace(/\D/g, "").slice(0, 2);
-    if (v !== "" && parseInt(v) > 59) v = "59";
-    onChangeTime(`${h || "00"}:${v.padStart(2, "0")}`);
-  };
-
-  const inputStyle = {
-    width: 48,
-    height: 48,
-    fontSize: 22,
-    fontWeight: 900,
-    color: "#0f172a",
-    textAlign: "center",
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    letterSpacing: 1,
-    borderRadius: 10,
-    cursor: "text",
-    WebkitAppearance: "none",
-    MozAppearance: "textfield",
-  };
-
-  return (
-    <div
-      style={{
-        flex: 1,
-        backgroundColor: "#f8fafc",
-        borderRadius: 20,
-        padding: 12,
-        border: "1px solid #e2e8f0",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderLeft: `3px solid ${color}`,
-          paddingLeft: 8,
-        }}
-      >
-        <span
-          style={{ fontSize: 10, fontWeight: 900, color, letterSpacing: 1.5 }}
-        >
-          {label}
-        </span>
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 900,
-            color: "#1e293b",
-            letterSpacing: 1,
-          }}
-        >
-          {h || "--"}:{m || "--"}
-        </span>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#fff",
-          borderRadius: 14,
-          border: "1px solid #e2e8f0",
-          padding: "6px 8px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 9,
-              color: "#94a3b8",
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
-          >
-            HH
-          </span>
-          <input
-            type="number"
-            min="0"
-            max="23"
-            value={h}
-            onChange={handleH}
-            placeholder="--"
-            style={inputStyle}
-          />
-        </div>
-        <span
-          style={{
-            fontSize: 26,
-            fontWeight: 900,
-            color: "#e2e8f0",
-            margin: "0 2px",
-            paddingBottom: 4,
-          }}
-        >
-          :
-        </span>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 9,
-              color: "#94a3b8",
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
-          >
-            MM
-          </span>
-          <input
-            type="number"
-            min="0"
-            max="59"
-            value={m}
-            onChange={handleM}
-            placeholder="--"
-            style={inputStyle}
-          />
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 4 }}>
-        {["00", "15", "30", "45"].map((min) => (
-          <button
-            key={min}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onChangeTime(`${h || "06"}:${min}`);
-            }}
-            style={{
-              flex: 1,
-              padding: "5px 0",
-              fontSize: 10,
-              fontWeight: 800,
-              color: m === min ? "#fff" : "#64748b",
-              backgroundColor: m === min ? color : "#f1f5f9",
-              border: "none",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
-          >
-            :{min}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// ✅ TIME RANGE PICKER MODAL — FULLY RESPONSIVE
-// ============================================================
-function TimeRangePickerModal({
-  visible,
-  fromTime,
-  toTime,
-  onApply,
-  onClear,
-  onClose,
-}) {
-  const [localFrom, setLocalFrom] = useState(fromTime || "06:00");
-  const [localTo, setLocalTo] = useState(toTime || "09:00");
-  const [error, setError] = useState("");
-  const slideAnim = useRef(new Animated.Value(height)).current;
-
-  useEffect(() => {
-    if (visible) {
-      setLocalFrom(fromTime || "06:00");
-      setLocalTo(toTime || "09:00");
-      setError("");
-      if (Platform.OS !== "web") {
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 80,
-          friction: 12,
-          useNativeDriver: true,
-        }).start();
-      }
-    } else {
-      if (Platform.OS !== "web") {
-        Animated.timing(slideAnim, {
-          toValue: height,
-          duration: 220,
-          useNativeDriver: true,
-        }).start();
-      }
-    }
-  }, [visible]);
-
-  const validate = (val) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(val);
-
-  const handleApply = () => {
-    if (!validate(localFrom)) {
-      setError("From time சரியாக இல்ல (HH:MM)");
-      return;
-    }
-    if (!validate(localTo)) {
-      setError("To time சரியாக இல்ல (HH:MM)");
-      return;
-    }
-    if (localFrom >= localTo) {
-      setError("From time, To time-ஐ விட குறைவாக இருக்கணும்");
-      return;
-    }
-    setError("");
-    onApply(localFrom, localTo);
-    onClose();
-  };
-
-  const handleClear = () => {
-    setLocalFrom("06:00");
-    setLocalTo("09:00");
-    setError("");
-    onClear();
-    onClose();
-  };
-
-  const presets = [
-    { label: "Morning", from: "05:00", to: "09:00", icon: "sunny-outline" },
-    {
-      label: "Afternoon",
-      from: "09:00",
-      to: "13:00",
-      icon: "partly-sunny-outline",
-    },
-    { label: "Evening", from: "15:00", to: "20:00", icon: "moon-outline" },
-  ];
-
-  const SheetContent = () => (
-    <View style={trp.sheet}>
-      <View style={trp.handle} />
-
-      {/* Header */}
-      <View style={trp.header}>
-        <View style={trp.headerLeft}>
-          <LinearGradient
-            colors={["#6366f1", "#4f46e5"]}
-            style={trp.headerIcon}
-          >
-            <Ionicons name="time" size={18} color="#fff" />
-          </LinearGradient>
-          <View>
-            <Text style={trp.title}>Time Filter</Text>
-            <Text style={trp.subtitle}>
-              Attendance time range select பண்ணுங்க
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity onPress={onClose} style={trp.closeBtn}>
-          <Ionicons name="close" size={16} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={trp.divider} />
-
-      {/* Presets */}
-      <Text style={trp.sectionLabel}>QUICK PRESETS</Text>
-      <View style={trp.presetRow}>
-        {presets.map((p) => {
-          const active = localFrom === p.from && localTo === p.to;
-          return (
-            <TouchableOpacity
-              key={p.label}
-              style={[trp.preset, active && trp.presetActive]}
-              onPress={() => {
-                setLocalFrom(p.from);
-                setLocalTo(p.to);
-                setError("");
-              }}
-            >
-              <Ionicons
-                name={p.icon}
-                size={15}
-                color={active ? "#fff" : "#6366f1"}
-              />
-              <Text style={[trp.presetLabel, active && trp.presetLabelActive]}>
-                {p.label}
-              </Text>
-              <Text style={[trp.presetTime, active && { color: "#c7d2fe" }]}>
-                {p.from}–{p.to}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Pickers */}
-      <Text style={[trp.sectionLabel, { marginTop: 18 }]}>
-        {Platform.OS === "web" ? "ENTER TIME" : "SCROLL TO SELECT"}
-      </Text>
-
-      <View style={trp.pickersRow}>
-        {Platform.OS === "web" ? (
-          <>
-            <WebTimePicker
-              label="FROM"
-              color="#6366f1"
-              time={localFrom}
-              onChangeTime={(v) => {
-                setLocalFrom(v);
-                setError("");
-              }}
-            />
-            <View style={trp.arrowWrap}>
-              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
-            </View>
-            <WebTimePicker
-              label="TO"
-              color="#f59e0b"
-              time={localTo}
-              onChangeTime={(v) => {
-                setLocalTo(v);
-                setError("");
-              }}
-            />
-          </>
-        ) : (
-          <>
-            <NativeTimePicker
-              label="FROM"
-              color="#6366f1"
-              time={localFrom}
-              onChangeTime={(v) => {
-                setLocalFrom(v);
-                setError("");
-              }}
-            />
-            <View style={trp.arrowWrap}>
-              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
-            </View>
-            <NativeTimePicker
-              label="TO"
-              color="#f59e0b"
-              time={localTo}
-              onChangeTime={(v) => {
-                setLocalTo(v);
-                setError("");
-              }}
-            />
-          </>
-        )}
-      </View>
-
-      {/* Preview */}
-      <View style={trp.preview}>
-        <Ionicons name="time-outline" size={14} color="#6366f1" />
-        <Text style={trp.previewText}>
-          {localFrom} → {localTo}
-        </Text>
-      </View>
-
-      {/* Error */}
-      {error ? (
-        <View style={trp.errorRow}>
-          <Ionicons name="alert-circle" size={13} color="#ef4444" />
-          <Text style={trp.errorText}>{error}</Text>
-        </View>
-      ) : null}
-
-      {/* Buttons */}
-      <View style={trp.btnRow}>
-        <TouchableOpacity style={trp.clearBtn} onPress={handleClear}>
-          <Ionicons name="refresh" size={14} color="#64748b" />
-          <Text style={trp.clearBtnText}>Clear</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={trp.applyBtnWrap} onPress={handleApply}>
-          <LinearGradient colors={["#6366f1", "#4f46e5"]} style={trp.applyBtn}>
-            <Ionicons name="checkmark-circle" size={16} color="#fff" />
-            <Text style={trp.applyBtnText}>Apply Filter</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  // WEB
-  if (Platform.OS === "web") {
-    if (!visible) return null;
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 9999,
-          backgroundColor: "rgba(2,6,23,0.72)",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "center",
-        }}
-        onMouseDown={onClose}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 520,
-            zIndex: 10000,
-            borderRadius: "34px 34px 0 0",
-            overflow: "hidden",
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <SheetContent />
-        </div>
-      </div>
-    );
-  }
-
-  // NATIVE
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={trp.overlay}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={onClose}
-          />
-          <Animated.View
-            style={{ transform: [{ translateY: slideAnim }], width: "100%" }}
-            pointerEvents="box-none"
-          >
-            <SheetContent />
-          </Animated.View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-const trp = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(2,6,23,0.72)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    padding: 24,
-    paddingBottom: Platform.OS === "ios" ? 40 : 28,
-  },
-  handle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#e2e8f0",
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  headerIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: { fontSize: 18, fontWeight: "900", color: "#0f172a" },
-  subtitle: { fontSize: 10, color: "#94a3b8", fontWeight: "600", marginTop: 2 },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: "#fef2f2",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  divider: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 18 },
-  sectionLabel: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#cbd5e1",
-    letterSpacing: 1.5,
-    marginBottom: 10,
-  },
-  presetRow: { flexDirection: "row", gap: 8 },
-  preset: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderRadius: 16,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    alignItems: "center",
-    gap: 3,
-  },
-  presetActive: { backgroundColor: "#4f46e5", borderColor: "#4f46e5" },
-  presetLabel: { fontSize: 11, fontWeight: "800", color: "#1e293b" },
-  presetLabelActive: { color: "#fff" },
-  presetTime: { fontSize: 9, color: "#94a3b8", fontWeight: "600" },
-  pickersRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  arrowWrap: {
-    width: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  preview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#ede9fe",
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: "#c7d2fe",
-  },
-  previewText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#4f46e5",
-    letterSpacing: 1,
-  },
-  errorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 10,
-  },
-  errorText: { fontSize: 11, color: "#ef4444", fontWeight: "600" },
-  btnRow: { flexDirection: "row", gap: 10, marginTop: 16 },
-  clearBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  clearBtnText: { fontSize: 13, fontWeight: "700", color: "#64748b" },
-  applyBtnWrap: { flex: 2, borderRadius: 18, overflow: "hidden" },
-  applyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-  },
-  applyBtnText: { fontSize: 14, fontWeight: "900", color: "#fff" },
-});
-
-// ============================================================
-// ✅ CUSTOM CALENDAR MODAL (Native)
+// ✅ CUSTOM CALENDAR MODAL
 // ============================================================
 function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
+
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
 
@@ -863,8 +78,10 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
     "December",
   ];
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-  const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-  const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
+
+  const getDaysInMonth = (year, month) =>
+    new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
   const prevMonth = () => {
     if (viewMonth === 0) {
@@ -872,36 +89,49 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
       setViewYear((y) => y - 1);
     } else setViewMonth((m) => m - 1);
   };
+
   const nextMonth = () => {
-    const n = new Date(viewYear, viewMonth + 1, 1);
-    if (n > today) return;
+    const next = new Date(viewYear, viewMonth + 1, 1);
+    if (next > today) return;
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear((y) => y + 1);
     } else setViewMonth((m) => m + 1);
   };
+
   const isNextDisabled = () => new Date(viewYear, viewMonth + 1, 1) > today;
 
-  const days = [];
-  for (let i = 0; i < getFirstDayOfMonth(viewYear, viewMonth); i++)
-    days.push(null);
-  for (let d = 1; d <= getDaysInMonth(viewYear, viewMonth); d++) days.push(d);
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const isFuture = (d) => {
-    const x = new Date(viewYear, viewMonth, d);
-    x.setHours(12, 0, 0, 0);
-    return x > today;
+  const isFuture = (day) => {
+    const d = new Date(viewYear, viewMonth, day);
+    d.setHours(12, 0, 0, 0);
+    return d > today;
   };
-  const isSelected = (d) =>
-    d &&
+
+  const isSelected = (day) =>
+    day &&
     currentDate.getFullYear() === viewYear &&
     currentDate.getMonth() === viewMonth &&
-    currentDate.getDate() === d;
-  const isToday = (d) =>
-    d &&
+    currentDate.getDate() === day;
+
+  const isToday = (day) =>
+    day &&
     today.getFullYear() === viewYear &&
     today.getMonth() === viewMonth &&
-    today.getDate() === d;
+    today.getDate() === day;
+
+  const handleSelect = (day) => {
+    if (!day || isFuture(day)) return;
+    const chosen = new Date(viewYear, viewMonth, day);
+    chosen.setHours(12, 0, 0, 0);
+    onSelectDate(chosen);
+    onClose();
+  };
 
   return (
     <Modal
@@ -935,26 +165,20 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
             ))}
           </View>
           <View style={cal.grid}>
-            {days.map((day, idx) => {
+            {cells.map((day, idx) => {
               const future = day ? isFuture(day) : false;
-              const sel = isSelected(day);
-              const tod = isToday(day);
+              const selected = isSelected(day);
+              const todayCell = isToday(day);
               return (
                 <TouchableOpacity
                   key={idx}
                   style={[
                     cal.cell,
-                    sel && cal.cellSelected,
-                    tod && !sel && cal.cellToday,
+                    selected && cal.cellSelected,
+                    todayCell && !selected && cal.cellToday,
                     future && cal.cellDisabled,
                   ]}
-                  onPress={() => {
-                    if (!day || future) return;
-                    const c = new Date(viewYear, viewMonth, day);
-                    c.setHours(12, 0, 0, 0);
-                    onSelectDate(c);
-                    onClose();
-                  }}
+                  onPress={() => handleSelect(day)}
                   disabled={!day || future}
                   activeOpacity={0.7}
                 >
@@ -962,8 +186,8 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
                     <Text
                       style={[
                         cal.cellText,
-                        sel && cal.cellTextSelected,
-                        tod && !sel && cal.cellTextToday,
+                        selected && cal.cellTextSelected,
+                        todayCell && !selected && cal.cellTextToday,
                         future && cal.cellTextDisabled,
                       ]}
                     >
@@ -989,6 +213,7 @@ function CustomCalendar({ visible, currentDate, onClose, onSelectDate }) {
 function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
+
   const [viewYear, setViewYear] = useState(currentDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth());
 
@@ -1007,8 +232,10 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
     "December",
   ];
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-  const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-  const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
+
+  const getDaysInMonth = (year, month) =>
+    new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
   const prevMonth = () => {
     if (viewMonth === 0) {
@@ -1017,8 +244,8 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
     } else setViewMonth((m) => m - 1);
   };
   const nextMonth = () => {
-    const n = new Date(viewYear, viewMonth + 1, 1);
-    if (n > today) return;
+    const next = new Date(viewYear, viewMonth + 1, 1);
+    if (next > today) return;
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear((y) => y + 1);
@@ -1026,26 +253,34 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
   };
   const isNextDisabled = () => new Date(viewYear, viewMonth + 1, 1) > today;
 
-  const days = [];
-  for (let i = 0; i < getFirstDayOfMonth(viewYear, viewMonth); i++)
-    days.push(null);
-  for (let d = 1; d <= getDaysInMonth(viewYear, viewMonth); d++) days.push(d);
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const isFuture = (d) => {
-    const x = new Date(viewYear, viewMonth, d);
-    x.setHours(12, 0, 0, 0);
-    return x > today;
+  const isFuture = (day) => {
+    const d = new Date(viewYear, viewMonth, day);
+    d.setHours(12, 0, 0, 0);
+    return d > today;
   };
-  const isSelected = (d) =>
-    d &&
+  const isSelected = (day) =>
+    day &&
     currentDate.getFullYear() === viewYear &&
     currentDate.getMonth() === viewMonth &&
-    currentDate.getDate() === d;
-  const isToday = (d) =>
-    d &&
+    currentDate.getDate() === day;
+  const isToday = (day) =>
+    day &&
     today.getFullYear() === viewYear &&
     today.getMonth() === viewMonth &&
-    today.getDate() === d;
+    today.getDate() === day;
+
+  const handleSelect = (day) => {
+    if (!day || isFuture(day)) return;
+    const chosen = new Date(viewYear, viewMonth, day);
+    chosen.setHours(12, 0, 0, 0);
+    onSelectDate(chosen);
+  };
 
   return (
     <View style={wcal.box}>
@@ -1072,25 +307,20 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
         ))}
       </View>
       <View style={wcal.grid}>
-        {days.map((day, idx) => {
+        {cells.map((day, idx) => {
           const future = day ? isFuture(day) : false;
-          const sel = isSelected(day);
-          const tod = isToday(day);
+          const selected = isSelected(day);
+          const todayCell = isToday(day);
           return (
             <TouchableOpacity
               key={idx}
               style={[
                 wcal.cell,
-                sel && wcal.cellSelected,
-                tod && !sel && wcal.cellToday,
+                selected && wcal.cellSelected,
+                todayCell && !selected && wcal.cellToday,
                 future && wcal.cellDisabled,
               ]}
-              onPress={() => {
-                if (!day || future) return;
-                const c = new Date(viewYear, viewMonth, day);
-                c.setHours(12, 0, 0, 0);
-                onSelectDate(c);
-              }}
+              onPress={() => handleSelect(day)}
               disabled={!day || future}
               activeOpacity={0.7}
             >
@@ -1098,8 +328,8 @@ function WebInlineCalendar({ currentDate, onClose, onSelectDate }) {
                 <Text
                   style={[
                     wcal.cellText,
-                    sel && wcal.cellTextSelected,
-                    tod && !sel && wcal.cellTextToday,
+                    selected && wcal.cellTextSelected,
+                    todayCell && !selected && wcal.cellTextToday,
                     future && wcal.cellTextDisabled,
                   ]}
                 >
@@ -1253,445 +483,6 @@ const cal = StyleSheet.create({
 });
 
 // ============================================================
-// ✅ ATTENDANCE LIST MODAL
-// ============================================================
-function AttendanceListModal({
-  visible,
-  onClose,
-  filterType,
-  setFilterType,
-  currentDate,
-  formatDate,
-  changeDate,
-  showCalendar,
-  setShowCalendar,
-  isTimeFiltered,
-  fromTime,
-  toTime,
-  setFromTime,
-  setToTime,
-  setShowTimeFilter,
-  filteredList,
-  downloadPDF,
-}) {
-  const Sheet = () => (
-    <View style={alm.sheet}>
-      <View style={alm.handle} />
-      <View style={alm.header}>
-        <View>
-          <Text style={alm.title}>
-            {filterType === "All"
-              ? "Attendance Sheet"
-              : `${filterType} Students`}
-          </Text>
-          <Text style={alm.subtitle}>{formatDate(currentDate)}</Text>
-        </View>
-        <View style={alm.actions}>
-          <TouchableOpacity
-            onPress={() => setShowTimeFilter(true)}
-            style={[
-              alm.actionBtn,
-              isTimeFiltered && { backgroundColor: "#4f46e5" },
-            ]}
-          >
-            <Ionicons
-              name="time-outline"
-              size={20}
-              color={isTimeFiltered ? "#fff" : "#6366f1"}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={downloadPDF} style={alm.actionBtn}>
-            <Ionicons name="cloud-download-outline" size={20} color="#6366f1" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={onClose}
-            style={[alm.actionBtn, { backgroundColor: "#fef2f2" }]}
-          >
-            <Ionicons name="close" size={20} color="#ef4444" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {isTimeFiltered && (
-        <View style={alm.timeStrip}>
-          <Ionicons name="time" size={13} color="#4f46e5" />
-          <Text style={alm.timeStripText}>
-            Time: {fromTime} → {toTime}
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              setFromTime("");
-              setToTime("");
-            }}
-            style={{ padding: 2 }}
-          >
-            <Ionicons name="close-circle" size={16} color="#ef4444" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={alm.filterWrapper}>
-        {["All", "Present", "Absent"].map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[
-              alm.filterTab,
-              filterType === tab &&
-                tab === "Present" && { backgroundColor: "#22c55e" },
-              filterType === tab &&
-                tab === "Absent" && { backgroundColor: "#ef4444" },
-              filterType === tab &&
-                tab === "All" && { backgroundColor: "#6366f1" },
-            ]}
-            onPress={() => setFilterType(tab)}
-          >
-            <Text
-              style={[
-                alm.filterTabText,
-                filterType === tab && { color: "#fff" },
-              ]}
-            >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={alm.dateSelector}>
-        <TouchableOpacity
-          onPress={() => changeDate(-1)}
-          style={alm.dateArrowBtn}
-        >
-          <Ionicons name="chevron-back" size={18} color="#6366f1" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={alm.dateLabelWrap}
-          onPress={() => setShowCalendar(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="calendar" size={16} color="#6366f1" />
-          <Text style={alm.dateLabel}>{formatDate(currentDate)}</Text>
-          <View style={alm.datePickerHint}>
-            <Ionicons name="chevron-down" size={12} color="#6366f1" />
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => changeDate(1)}
-          style={alm.dateArrowBtn}
-        >
-          <Ionicons name="chevron-forward" size={18} color="#6366f1" />
-        </TouchableOpacity>
-      </View>
-
-      {Platform.OS === "web" && showCalendar && (
-        <WebInlineCalendar
-          currentDate={currentDate}
-          onClose={() => setShowCalendar(false)}
-          onSelectDate={(date) => {
-            setShowCalendar(false);
-          }}
-        />
-      )}
-
-      <View style={alm.listHeader}>
-        <Text style={alm.headerNo}>#</Text>
-        <Text style={[alm.headerTxt, { flex: 2, textAlign: "left" }]}>
-          Student Name
-        </Text>
-        <Text style={[alm.headerTxt, { flex: 1 }]}>Class</Text>
-        <Text style={[alm.headerTxt, { flex: 1 }]}>N | S</Text>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-        {filteredList.map((item, index) => (
-          <View
-            key={index}
-            style={[
-              alm.listRow,
-              index % 2 === 0 && { backgroundColor: "#fafafa" },
-            ]}
-          >
-            <View style={alm.serialBox}>
-              <Text style={alm.serialText}>{index + 1}</Text>
-            </View>
-            <View style={alm.avatarBox}>
-              {item.photo ? (
-                <Image source={{ uri: item.photo }} style={alm.thumb} />
-              ) : (
-                <View style={alm.avatarPlaceholder}>
-                  <Ionicons name="person" size={13} color="#94a3b8" />
-                </View>
-              )}
-            </View>
-            <Text style={[alm.studentName, { flex: 2 }]}>{item.name}</Text>
-            <Text style={[alm.classTag, { flex: 1 }]}>
-              {item.is_special ? "N & S" : "Only N"}
-            </Text>
-            <View style={alm.statusGroup}>
-              <Text
-                style={[
-                  alm.statusChar,
-                  { color: item.n_status === "P" ? "#22c55e" : "#ef4444" },
-                ]}
-              >
-                {filterType === "Present"
-                  ? item.n_status === "P"
-                    ? "P"
-                    : ""
-                  : filterType === "Absent"
-                    ? item.n_status === "A"
-                      ? "A"
-                      : ""
-                    : item.n_status}
-              </Text>
-              <Text style={alm.statusDivider}>|</Text>
-              <Text
-                style={[
-                  alm.statusChar,
-                  { color: item.s_status === "P" ? "#22c55e" : "#ef4444" },
-                ]}
-              >
-                {filterType === "Present"
-                  ? item.s_status === "P"
-                    ? "P"
-                    : ""
-                  : filterType === "Absent"
-                    ? item.s_status === "A"
-                      ? "A"
-                      : ""
-                    : item.s_status}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
-  if (Platform.OS === "web") {
-    if (!visible) return null;
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 1000,
-          backgroundColor: "rgba(2,6,23,0.72)",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-end",
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
-      >
-        <div
-          style={{
-            zIndex: 1001,
-            borderRadius: "34px 34px 0 0",
-            overflow: "hidden",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Sheet />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={alm.overlay}>
-        <Sheet />
-      </View>
-    </Modal>
-  );
-}
-
-const alm = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(2,6,23,0.72)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    padding: 24,
-    flexDirection: "column",
-    ...(Platform.OS === "web" ? { height: "88vh" } : { height: "88%" }),
-  },
-  handle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#e2e8f0",
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-  title: { fontSize: 20, fontWeight: "900", color: "#0f172a" },
-  subtitle: { color: "#94a3b8", fontSize: 12, fontWeight: "600", marginTop: 2 },
-  actions: { flexDirection: "row", gap: 8 },
-  actionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: "#ede9fe",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  timeStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#ede9fe",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#c7d2fe",
-  },
-  timeStripText: { flex: 1, fontSize: 12, fontWeight: "800", color: "#4f46e5" },
-  filterWrapper: {
-    flexDirection: "row",
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    gap: 4,
-  },
-  filterTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 12,
-  },
-  filterTabText: { fontSize: 13, fontWeight: "700", color: "#64748b" },
-  dateSelector: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    padding: 10,
-    marginBottom: 14,
-  },
-  dateArrowBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "#ede9fe",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dateLabelWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "#ede9fe",
-    borderRadius: 11,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    marginHorizontal: 6,
-  },
-  dateLabel: { fontWeight: "800", color: "#1e293b", fontSize: 14 },
-  datePickerHint: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#c7d2fe",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  listHeader: {
-    flexDirection: "row",
-    paddingBottom: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: "#f1f5f9",
-    marginBottom: 4,
-    alignItems: "center",
-  },
-  headerNo: {
-    width: 28,
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#94a3b8",
-    textAlign: "center",
-  },
-  headerTxt: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#94a3b8",
-    textAlign: "center",
-    letterSpacing: 0.5,
-  },
-  listRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f8fafc",
-    borderRadius: 10,
-    paddingHorizontal: 2,
-  },
-  serialBox: { width: 28, alignItems: "center", justifyContent: "center" },
-  serialText: { fontSize: 11, fontWeight: "800", color: "#94a3b8" },
-  avatarBox: { width: 40, marginRight: 6, alignItems: "center" },
-  thumb: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    borderColor: "#e2e8f0",
-  },
-  avatarPlaceholder: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#f1f5f9",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#cbd5e1",
-  },
-  studentName: { fontSize: 13, fontWeight: "700", color: "#1e293b" },
-  classTag: {
-    fontSize: 10,
-    color: "#64748b",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  statusGroup: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  statusChar: { fontSize: 16, fontWeight: "900" },
-  statusDivider: { marginHorizontal: 5, color: "#e2e8f0", fontSize: 15 },
-});
-
-// ============================================================
 // ✅ MAIN DASHBOARD
 // ============================================================
 export default function Dashboard() {
@@ -1701,46 +492,27 @@ export default function Dashboard() {
   const [isReportsModalVisible, setIsReportsModalVisible] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
-  const [showTimeFilter, setShowTimeFilter] = useState(false);
-  const [fromTime, setFromTime] = useState("");
-  const [toTime, setToTime] = useState("");
-  const isTimeFiltered = !!(fromTime && toTime);
 
   const reportBounce = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
     new Animated.Value(0),
   ]).current;
-  const attendanceBounce = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
+
   const [user, setUser] = useState({ name: "", image: null, role: null });
   const [image, setImage] = useState(null);
   const [filterType, setFilterType] = useState("All");
   const [timeLeft, setTimeLeft] = useState(3600);
-  const [stats, setStats] = useState({
-    n_data: { present: 0, total: 0, percent: 0 },
-    s_data: { present: 0, total: 0, percent: 0 },
-    student_list: [],
-    selected_date: "",
-  });
-  const [isAttendanceModalVisible, setIsAttendanceModalVisible] =
-    useState(false);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideUp = useRef(new Animated.Value(60)).current;
-  const headerScale = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
+      setTimeLeft((prevTime) => {
+        if (prevTime <= 1) {
           clearInterval(timer);
           handleAutoLogout();
           return 0;
         }
-        return prev - 1;
+        return prevTime - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
@@ -1755,32 +527,366 @@ export default function Dashboard() {
     );
   };
 
-  const formatTimer = (s) =>
-    `${Math.floor(s / 60)}:${s % 60 < 10 ? "0" : ""}${s % 60}`;
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  const [isAttendanceModalVisible, setIsAttendanceModalVisible] =
+    useState(false);
+  const attendanceBounce = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
+  const openAttendanceModal = () => {
+    attendanceBounce.forEach((anim) => anim.setValue(0));
+    setIsAttendanceModalVisible(true);
+    attendanceBounce.forEach((anim, i) => {
+      Animated.sequence([
+        Animated.delay(i * 100),
+        Animated.spring(anim, {
+          toValue: 1,
+          tension: 180,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  const attendanceItems = [
+    {
+      route: "/Normalstudent",
+      icon: "cricket",
+      iconLib: "MaterialCommunityIcons",
+      color: "#0369a1",
+      bg: "#e0f2fe",
+      label: "Normal Training",
+    },
+    {
+      route: "/Specialstudent",
+      icon: "star-circle",
+      iconLib: "MaterialCommunityIcons",
+      color: "#b45309",
+      bg: "#fef3c7",
+      label: "Special Training",
+    },
+  ];
+
+  const [stats, setStats] = useState({
+    n_data: { present: 0, total: 0, percent: 0 },
+    s_data: { present: 0, total: 0, percent: 0 },
+    student_list: [],
+    selected_date: "",
+  });
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideUp = useRef(new Animated.Value(60)).current;
+  const headerScale = useRef(new Animated.Value(0.95)).current;
 
   const formatDate = (date) => {
-    const y = date.getFullYear(),
-      m = String(date.getMonth() + 1).padStart(2, "0"),
-      d = String(date.getDate()).padStart(2, "0");
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
-  useEffect(() => {
-    fetchDashboardData(formatDate(currentDate), fromTime, toTime);
-  }, [currentDate, fromTime, toTime]);
+  const downloadPDF = async () => {
+    try {
+      const fullList = stats.student_list || [];
 
-  const fetchDashboardData = async (dateStr, ft = "", tt = "") => {
+      const normalStats = {
+        total: fullList.filter((s) => s.n_status === "P" || s.n_status === "A")
+          .length,
+        present: fullList.filter((s) => s.n_status === "P").length,
+        absent: fullList.filter((s) => s.n_status === "A").length,
+      };
+
+      const specialStats = {
+        total: fullList.filter((s) => s.is_special).length,
+        s_p: fullList.filter((s) => s.is_special && s.s_status === "P").length,
+        s_a: fullList.filter((s) => s.is_special && s.s_status === "A").length,
+      };
+
+      const totalUniquePresent = fullList.filter(
+        (s) => s.n_status === "P" || s.s_status === "P",
+      ).length;
+
+      // ── iOS: FileSystem download → base64 ──────────────────────────────────
+      const toBase64iOS = async (url) => {
+        try {
+          if (!url) return null;
+          const token = await AsyncStorage.getItem("token");
+          const localUri =
+            FileSystem.cacheDirectory + "tmp_photo_" + Date.now() + ".jpg";
+          const downloadResult = await FileSystem.downloadAsync(url, localUri, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (downloadResult.status !== 200) return null;
+          const base64 = await FileSystem.readAsStringAsync(
+            downloadResult.uri,
+            {
+              encoding: FileSystem.EncodingType.Base64,
+            },
+          );
+          return `data:image/jpeg;base64,${base64}`;
+        } catch {
+          return null;
+        }
+      };
+
+      // ── Build studentsWithPhoto ────────────────────────────────────────────
+      let studentsWithPhoto;
+      if (Platform.OS === "ios") {
+        // iOS native: base64 convert பண்றோம்
+        studentsWithPhoto = await Promise.all(
+          fullList.map(async (s) => ({
+            ...s,
+            b64: await toBase64iOS(s.photo),
+          })),
+        );
+      } else if (Platform.OS === "web") {
+        // Web (Chrome + Safari):
+        // window.open() மூலம் same session-ல் open பண்றோம்
+        // browser-யே direct URL load பண்ணும் → base64 convert தேவையில்லை ✅
+        studentsWithPhoto = fullList.map((s) => ({
+          ...s,
+          b64: s.photo || null,
+        }));
+      } else {
+        // Android: base64 convert
+        const toBase64 = async (url) => {
+          try {
+            if (!url) return null;
+            const response = await fetch(url, {
+              cache: "no-cache",
+              mode: "cors",
+            });
+            if (!response.ok) return null;
+            const blob = await response.blob();
+            return await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch {
+            return null;
+          }
+        };
+        studentsWithPhoto = await Promise.all(
+          fullList.map(async (s) => ({ ...s, b64: await toBase64(s.photo) })),
+        );
+      }
+
+      // ── Sort ───────────────────────────────────────────────────────────────
+      const normalWithPhoto = studentsWithPhoto
+        .filter((i) => i.n_status === "P")
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const specialWithPhoto = studentsWithPhoto
+        .filter((i) => i.is_special && i.s_status === "P")
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      // ── Placeholder SVG ────────────────────────────────────────────────────
+      const placeholderSVG = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><circle cx='15' cy='15' r='15' fill='%23e2e8f0'/><circle cx='15' cy='12' r='5' fill='%2394a3b8'/><ellipse cx='15' cy='24' rx='8' ry='5' fill='%2394a3b8'/></svg>`;
+
+      const isIOS = Platform.OS === "ios";
+
+      // ── Build rows ─────────────────────────────────────────────────────────
+      const buildRows = (list, isSpecial) =>
+        list
+          .map((item, i) => {
+            const imgSrc = item.b64 || placeholderSVG;
+
+            const photoCell = isIOS
+              ? `<div style="
+                width:30px;height:30px;border-radius:15px;
+                background-image:url('${imgSrc}');
+                background-size:cover;background-position:center;
+                background-color:#e2e8f0;display:inline-block;
+                -webkit-print-color-adjust:exact;print-color-adjust:exact;
+              "></div>`
+              : `<img src="${imgSrc}"
+                style="width:30px;height:30px;border-radius:15px;object-fit:cover;"
+                onerror="this.src='${placeholderSVG}'"
+              />`;
+
+            const statusClass = isSpecial
+              ? item.s_status === "P"
+                ? "status-p"
+                : "status-a"
+              : item.n_status === "P"
+                ? "status-p"
+                : "status-a";
+
+            const statusText = isSpecial
+              ? item.s_status || "-"
+              : item.n_status || "-";
+
+            return `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${photoCell}</td>
+            <td class="name-col">${item.name}</td>
+            <td class="${statusClass}">${statusText}</td>
+          </tr>`;
+          })
+          .join("");
+
+      // ── HTML content ───────────────────────────────────────────────────────
+      const htmlContent = `
+      <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <style>
+          body { font-family:Helvetica,sans-serif; padding:20px; color:#1e293b; }
+          .title { font-size:24px; font-weight:bold; color:#1e3a8a; text-align:center; }
+          .summary-banner {
+            background:#f0fdf4; border:1px solid #86efac;
+            border-radius:8px; padding:10px 16px; margin:10px 0 6px; text-align:center;
+          }
+          .summary-banner-label { font-size:11px; color:#15803d; font-weight:600; }
+          .summary-banner-count { font-size:28px; font-weight:900; color:#15803d; }
+          .stats-container { display:flex; gap:10px; margin:10px 0 20px; }
+          .card { flex:1; padding:12px; border-radius:8px; border:1px solid #e2e8f0; }
+          .normal-card { background:#eff6ff; border-left:5px solid #3b82f6; }
+          .special-card { background:#fffbeb; border-left:5px solid #f59e0b; }
+          table { width:100%; border-collapse:collapse; margin-top:10px; table-layout:fixed; }
+          th,td { border:1px solid #cbd5e1; padding:8px; text-align:center; font-size:10px; }
+          th { background-color:#1e3a8a; color:white; }
+          .name-col { text-align:left; font-weight:bold; }
+          .status-p { color:#16a34a; font-weight:bold; }
+          .status-a { color:#dc2626; font-weight:bold; }
+          * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+          @media print { body { padding:10px; } }
+        </style>
+      </head>
+      <body>
+        <div class="title">BSC Cricket Academy</div>
+        <p style="text-align:center;margin:4px 0;">
+          Daily Attendance Report — ${formatDate(currentDate)}
+        </p>
+        <div class="summary-banner">
+          <div class="summary-banner-label">TOTAL PRESENT STUDENTS</div>
+          <div class="summary-banner-count">${totalUniquePresent}</div>
+        </div>
+        <div class="stats-container">
+          <div class="card normal-card">
+            <b>NORMAL CLASS</b><br/>
+            Total: ${normalStats.total}&nbsp;&nbsp;
+            P: <span class="status-p">${normalStats.present}</span>&nbsp;&nbsp;
+            A: <span class="status-a">${normalStats.absent}</span>
+          </div>
+          <div class="card special-card">
+            <b>SPECIAL CLASS</b><br/>
+            Total: ${specialStats.total}&nbsp;&nbsp;
+            P: <span class="status-p">${specialStats.s_p}</span>&nbsp;&nbsp;
+            A: <span class="status-a">${specialStats.s_a}</span>
+          </div>
+        </div>
+        ${
+          normalWithPhoto.length > 0
+            ? `
+          <h3 style="color:#1e3a8a;border-bottom:1px solid #1e3a8a;">
+            Normal Class (${normalWithPhoto.length})
+          </h3>
+          <table>
+            <thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead>
+            <tbody>${buildRows(normalWithPhoto, false)}</tbody>
+          </table>`
+            : ""
+        }
+        ${
+          specialWithPhoto.length > 0
+            ? `
+          <h3 style="color:#f59e0b;border-bottom:1px solid #f59e0b;">
+            Special Class (${specialWithPhoto.length})
+          </h3>
+          <table>
+            <thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead>
+            <tbody>${buildRows(specialWithPhoto, true)}</tbody>
+          </table>`
+            : ""
+        }
+      </body>
+      </html>
+    `;
+
+      // ── Export ─────────────────────────────────────────────────────────────
+      if (Platform.OS === "web") {
+        // ✅ Chrome + Safari இரண்டுக்கும் same approach:
+        // window.open() → புது tab-ல் HTML write பண்றோம்
+        // same https:// session → browser images தானா load பண்ணும்
+        // print dialog → "Save as PDF" → images with PDF ✅
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          printWindow.onload = () => {
+            setTimeout(() => {
+              printWindow.focus();
+              printWindow.print();
+              printWindow.onafterprint = () => printWindow.close();
+            }, 800); // images load ஆக கொஞ்சம் wait
+          };
+        }
+      } else if (Platform.OS === "ios") {
+        // iOS Native: Print sheet
+        await Print.printAsync({ html: htmlContent });
+      } else {
+        // Android: PDF file → share
+        const { uri } = await Print.printToFileAsync({
+          html: htmlContent,
+          base64: false,
+        });
+        await Sharing.shareAsync(uri, {
+          UTI: ".pdf",
+          mimeType: "application/pdf",
+        });
+      }
+    } catch (error) {
+      showAlert("PDF Error", `Error: ${error.message}`, [{ text: "OK" }]);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("user_data").then((stored) => {
+        if (stored) {
+          const data = JSON.parse(stored);
+          const baseUrl = axios.defaults.baseURL.endsWith("/")
+            ? axios.defaults.baseURL.split("/api")[0]
+            : axios.defaults.baseURL.replace("/api", "");
+          let fullImage = null;
+          if (data.profile) {
+            fullImage = data.profile.startsWith("http")
+              ? data.profile
+              : `${baseUrl}${data.profile}`;
+          }
+          setUser({ name: data.name, image: fullImage, role: data.role });
+          setImage(fullImage);
+        }
+      });
+    }, []),
+  );
+
+  useEffect(() => {
+    fetchDashboardData(formatDate(currentDate));
+  }, [currentDate]);
+
+  const fetchDashboardData = async (dateStr) => {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem("token");
-      let url = `/dashboard-stats/?date=${dateStr}`;
-      if (ft && tt) url += `&from_time=${ft}&to_time=${tt}`;
-      const res = await axios.get(url, {
+      const response = await axios.get(`/dashboard-stats/?date=${dateStr}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data.status.code === 200) setStats(res.data.data);
-    } catch (err) {
-      if (err.response?.status === 401) {
+      if (response.data.status.code === 200) setStats(response.data.data);
+    } catch (error) {
+      if (error.response?.status === 401) {
         await AsyncStorage.multiRemove(["token", "user_data"]);
         showAlert("Session Expired", "Please login again.", [
           { text: "OK", onPress: () => router.replace("/login") },
@@ -1808,20 +914,22 @@ export default function Dashboard() {
     }
   };
 
-  const changeDate = (days) => {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() + days);
-    d.setHours(12, 0, 0, 0);
-    setCurrentDate(d);
-  };
+  const filteredList = stats.student_list
+    ? stats.student_list.filter((item) => {
+        if (filterType === "Present")
+          return item.n_status === "P" || item.s_status === "P";
+        if (filterType === "Absent")
+          return item.n_status === "A" || item.s_status === "A";
+        return true;
+      })
+    : [];
 
-  const filteredList = (stats.student_list || []).filter((item) => {
-    if (filterType === "Present")
-      return item.n_status === "P" || item.s_status === "P";
-    if (filterType === "Absent")
-      return item.n_status === "A" || item.s_status === "A";
-    return true;
-  });
+  const changeDate = (days) => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + days);
+    newDate.setHours(12, 0, 0, 0);
+    setCurrentDate(newDate);
+  };
 
   const handleLogout = () => {
     showAlert("Logout", "Do you want to exit the session?", [
@@ -1837,234 +945,22 @@ export default function Dashboard() {
     ]);
   };
 
-  const openAttendanceModal = () => {
-    attendanceBounce.forEach((a) => a.setValue(0));
-    setIsAttendanceModalVisible(true);
-    attendanceBounce.forEach((a, i) =>
-      Animated.sequence([
-        Animated.delay(i * 100),
-        Animated.spring(a, {
-          toValue: 1,
-          tension: 180,
-          friction: 5,
-          useNativeDriver: true,
-        }),
-      ]).start(),
-    );
-  };
-
   const openReportsModal = () => {
-    reportBounce.forEach((a) => a.setValue(0));
+    reportBounce.forEach((anim) => anim.setValue(0));
     setIsReportsModalVisible(true);
-    reportBounce.forEach((a, i) =>
+    reportBounce.forEach((anim, i) => {
       Animated.sequence([
         Animated.delay(i * 100),
-        Animated.spring(a, {
+        Animated.spring(anim, {
           toValue: 1,
           tension: 180,
           friction: 5,
           useNativeDriver: true,
         }),
-      ]).start(),
-    );
+      ]).start();
+    });
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      AsyncStorage.getItem("user_data").then((stored) => {
-        if (stored) {
-          const data = JSON.parse(stored);
-          const baseUrl = axios.defaults.baseURL.endsWith("/")
-            ? axios.defaults.baseURL.split("/api")[0]
-            : axios.defaults.baseURL.replace("/api", "");
-          let img = null;
-          if (data.profile) {
-            img = data.profile.startsWith("http")
-              ? data.profile
-              : `${baseUrl}${data.profile}`;
-          }
-          setUser({ name: data.name, image: img, role: data.role });
-          setImage(img);
-        }
-      });
-    }, []),
-  );
-
-  const downloadPDF = async () => {
-    try {
-      const fullList = stats.student_list || [];
-      const normalStats = {
-        total: fullList.filter((s) => s.n_status === "P" || s.n_status === "A")
-          .length,
-        present: fullList.filter((s) => s.n_status === "P").length,
-        absent: fullList.filter((s) => s.n_status === "A").length,
-      };
-      const specialStats = {
-        total: fullList.filter((s) => s.is_special).length,
-        s_p: fullList.filter((s) => s.is_special && s.s_status === "P").length,
-        s_a: fullList.filter((s) => s.is_special && s.s_status === "A").length,
-      };
-      const totalUniquePresent = fullList.filter(
-        (s) => s.n_status === "P" || s.s_status === "P",
-      ).length;
-
-      const toBase64iOS = async (url) => {
-        try {
-          if (!url) return null;
-          const token = await AsyncStorage.getItem("token");
-          const localUri =
-            FileSystem.cacheDirectory + "tmp_photo_" + Date.now() + ".jpg";
-          const result = await FileSystem.downloadAsync(url, localUri, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (result.status !== 200) return null;
-          const b64 = await FileSystem.readAsStringAsync(result.uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          return `data:image/jpeg;base64,${b64}`;
-        } catch {
-          return null;
-        }
-      };
-
-      let swp;
-      if (Platform.OS === "ios") {
-        swp = await Promise.all(
-          fullList.map(async (s) => ({
-            ...s,
-            b64: await toBase64iOS(s.photo),
-          })),
-        );
-      } else if (Platform.OS === "web") {
-        swp = fullList.map((s) => ({ ...s, b64: s.photo || null }));
-      } else {
-        const toBase64 = async (url) => {
-          try {
-            if (!url) return null;
-            const r = await fetch(url, { cache: "no-cache", mode: "cors" });
-            if (!r.ok) return null;
-            const blob = await r.blob();
-            return await new Promise((res, rej) => {
-              const rd = new FileReader();
-              rd.onloadend = () => res(rd.result);
-              rd.onerror = rej;
-              rd.readAsDataURL(blob);
-            });
-          } catch {
-            return null;
-          }
-        };
-        swp = await Promise.all(
-          fullList.map(async (s) => ({ ...s, b64: await toBase64(s.photo) })),
-        );
-      }
-
-      const nList = swp
-        .filter((i) => i.n_status === "P")
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const sList = swp
-        .filter((i) => i.is_special && i.s_status === "P")
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const ph = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='30' height='30'><circle cx='15' cy='15' r='15' fill='%23e2e8f0'/><circle cx='15' cy='12' r='5' fill='%2394a3b8'/><ellipse cx='15' cy='24' rx='8' ry='5' fill='%2394a3b8'/></svg>`;
-      const isIOS = Platform.OS === "ios";
-
-      const buildRows = (list, isSpl) =>
-        list
-          .map((item, i) => {
-            const src = item.b64 || ph;
-            const photoCell = isIOS
-              ? `<div style="width:30px;height:30px;border-radius:15px;background-image:url('${src}');background-size:cover;background-position:center;background-color:#e2e8f0;display:inline-block;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div>`
-              : `<img src="${src}" style="width:30px;height:30px;border-radius:15px;object-fit:cover;" onerror="this.src='${ph}'"/>`;
-            const sc = isSpl
-              ? item.s_status === "P"
-                ? "status-p"
-                : "status-a"
-              : item.n_status === "P"
-                ? "status-p"
-                : "status-a";
-            const st = isSpl ? item.s_status || "-" : item.n_status || "-";
-            return `<tr><td>${i + 1}</td><td>${photoCell}</td><td class="name-col">${item.name}</td><td class="${sc}">${st}</td></tr>`;
-          })
-          .join("");
-
-      const tfNote = isTimeFiltered
-        ? `<p style="text-align:center;margin:2px 0;font-size:12px;color:#6366f1;font-weight:700;">⏱ Time Filter: ${fromTime} – ${toTime}</p>`
-        : "";
-
-      const html = `<html><head><meta charset="UTF-8"/><style>
-        body{font-family:Helvetica,sans-serif;padding:20px;color:#1e293b;}
-        .title{font-size:24px;font-weight:bold;color:#1e3a8a;text-align:center;}
-        .summary-banner{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 16px;margin:10px 0 6px;text-align:center;}
-        .summary-banner-label{font-size:11px;color:#15803d;font-weight:600;}
-        .summary-banner-count{font-size:28px;font-weight:900;color:#15803d;}
-        .stats-container{display:flex;gap:10px;margin:10px 0 20px;}
-        .card{flex:1;padding:12px;border-radius:8px;border:1px solid #e2e8f0;}
-        .normal-card{background:#eff6ff;border-left:5px solid #3b82f6;}
-        .special-card{background:#fffbeb;border-left:5px solid #f59e0b;}
-        table{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed;}
-        th,td{border:1px solid #cbd5e1;padding:8px;text-align:center;font-size:10px;}
-        th{background-color:#1e3a8a;color:white;}
-        .name-col{text-align:left;font-weight:bold;}
-        .status-p{color:#16a34a;font-weight:bold;}
-        .status-a{color:#dc2626;font-weight:bold;}
-        *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
-      </style></head><body>
-      <div class="title">BSC Cricket Academy</div>
-      <p style="text-align:center;margin:4px 0;">Daily Attendance Report — ${formatDate(currentDate)}</p>
-      ${tfNote}
-      <div class="summary-banner"><div class="summary-banner-label">TOTAL PRESENT STUDENTS</div><div class="summary-banner-count">${totalUniquePresent}</div></div>
-      <div class="stats-container">
-        <div class="card normal-card"><b>NORMAL CLASS</b><br/>Total: ${normalStats.total}&nbsp;&nbsp;P: <span class="status-p">${normalStats.present}</span>&nbsp;&nbsp;A: <span class="status-a">${normalStats.absent}</span></div>
-        <div class="card special-card"><b>SPECIAL CLASS</b><br/>Total: ${specialStats.total}&nbsp;&nbsp;P: <span class="status-p">${specialStats.s_p}</span>&nbsp;&nbsp;A: <span class="status-a">${specialStats.s_a}</span></div>
-      </div>
-      ${nList.length > 0 ? `<h3 style="color:#1e3a8a;border-bottom:1px solid #1e3a8a;">Normal Class (${nList.length})</h3><table><thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead><tbody>${buildRows(nList, false)}</tbody></table>` : ""}
-      ${sList.length > 0 ? `<h3 style="color:#f59e0b;border-bottom:1px solid #f59e0b;">Special Class (${sList.length})</h3><table><thead><tr><th>#</th><th>Photo</th><th>Name</th><th>Status</th></tr></thead><tbody>${buildRows(sList, true)}</tbody></table>` : ""}
-      </body></html>`;
-
-      if (Platform.OS === "web") {
-        const pw = window.open("", "_blank");
-        if (pw) {
-          pw.document.write(html);
-          pw.document.close();
-          pw.onload = () =>
-            setTimeout(() => {
-              pw.focus();
-              pw.print();
-              pw.onafterprint = () => pw.close();
-            }, 800);
-        }
-      } else if (Platform.OS === "ios") {
-        await Print.printAsync({ html });
-      } else {
-        const { uri } = await Print.printToFileAsync({ html, base64: false });
-        await Sharing.shareAsync(uri, {
-          UTI: ".pdf",
-          mimeType: "application/pdf",
-        });
-      }
-    } catch (err) {
-      showAlert("PDF Error", `Error: ${err.message}`, [{ text: "OK" }]);
-    }
-  };
-
-  const attendanceItems = [
-    {
-      route: "/Normalstudent",
-      icon: "cricket",
-      iconLib: "MaterialCommunityIcons",
-      color: "#0369a1",
-      bg: "#e0f2fe",
-      label: "Normal Training",
-    },
-    {
-      route: "/Specialstudent",
-      icon: "star-circle",
-      iconLib: "MaterialCommunityIcons",
-      color: "#b45309",
-      bg: "#fef3c7",
-      label: "Special Training",
-    },
-  ];
   const reportItems = [
     {
       route: "/Monthlyattendance",
@@ -2100,52 +996,16 @@ export default function Dashboard() {
       <StatusBar barStyle="light-content" />
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* ✅ NEW RESPONSIVE TIME FILTER MODAL */}
-      <TimeRangePickerModal
-        visible={showTimeFilter}
-        fromTime={fromTime}
-        toTime={toTime}
-        onApply={(ft, tt) => {
-          setFromTime(ft);
-          setToTime(tt);
-        }}
-        onClear={() => {
-          setFromTime("");
-          setToTime("");
-        }}
-        onClose={() => setShowTimeFilter(false)}
-      />
-
-      <AttendanceListModal
-        visible={isListModalVisible}
-        onClose={() => setIsListModalVisible(false)}
-        filterType={filterType}
-        setFilterType={setFilterType}
-        currentDate={currentDate}
-        formatDate={formatDate}
-        changeDate={changeDate}
-        showCalendar={showCalendar}
-        setShowCalendar={setShowCalendar}
-        isTimeFiltered={isTimeFiltered}
-        fromTime={fromTime}
-        toTime={toTime}
-        setFromTime={setFromTime}
-        setToTime={setToTime}
-        setShowTimeFilter={setShowTimeFilter}
-        filteredList={filteredList}
-        downloadPDF={downloadPDF}
-      />
-
       {Platform.OS !== "web" && (
         <CustomCalendar
           visible={showCalendar}
           currentDate={currentDate}
           onClose={() => setShowCalendar(false)}
-          onSelectDate={(d) => setCurrentDate(d)}
+          onSelectDate={(date) => setCurrentDate(date)}
         />
       )}
 
-      {/* HEADER */}
+      {/* ─── HEADER ─── */}
       <LinearGradient
         colors={["#020617", "#0c1a3a", "#1e3a8a"]}
         style={styles.headerGradient}
@@ -2205,16 +1065,14 @@ export default function Dashboard() {
         refreshControl={
           <RefreshControl
             refreshing={loading}
-            onRefresh={() =>
-              fetchDashboardData(formatDate(currentDate), fromTime, toTime)
-            }
+            onRefresh={() => fetchDashboardData(formatDate(currentDate))}
           />
         }
       >
         <Animated.View
           style={{ opacity: fadeAnim, transform: [{ translateY: slideUp }] }}
         >
-          {/* HERO CARD */}
+          {/* ─── HERO CARD ─── */}
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => setIsListModalVisible(true)}
@@ -2234,28 +1092,6 @@ export default function Dashboard() {
                   <View style={styles.liveDotInner} />
                 </View>
                 <Text style={styles.heroLabel}>LIVE ATTENDANCE</Text>
-                {isTimeFiltered && (
-                  <TouchableOpacity
-                    style={styles.timeFilterBadge}
-                    onPress={() => setShowTimeFilter(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="time" size={10} color="#a5b4fc" />
-                    <Text style={styles.timeFilterBadgeText}>
-                      {fromTime}–{toTime}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation?.();
-                        setFromTime("");
-                        setToTime("");
-                      }}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="close-circle" size={12} color="#a5b4fc" />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                )}
                 <View style={styles.heroDateChip}>
                   <Text style={styles.heroDateText}>
                     {formatDate(currentDate)}
@@ -2328,7 +1164,7 @@ export default function Dashboard() {
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* MANAGEMENT HUB */}
+          {/* ─── MANAGEMENT HUB ─── */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Management Hub</Text>
             <View style={styles.sectionAccent} />
@@ -2358,6 +1194,7 @@ export default function Dashboard() {
               </TouchableOpacity>
             )}
 
+            {/* Attendance Card */}
             <TouchableOpacity
               style={styles.reportsCard}
               onPress={openAttendanceModal}
@@ -2461,6 +1298,7 @@ export default function Dashboard() {
               </View>
             </TouchableOpacity>
 
+            {/* Reports Card */}
             <TouchableOpacity
               style={styles.reportsCard}
               onPress={openReportsModal}
@@ -2561,10 +1399,203 @@ export default function Dashboard() {
         </Animated.View>
       </ScrollView>
 
-      {/* ATTENDANCE TYPE MODAL */}
+      {/* ─── ATTENDANCE LIST MODAL ─── */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isListModalVisible}
+        onRequestClose={() => setIsListModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {filterType === "All"
+                    ? "Attendance Sheet"
+                    : `${filterType} Students`}
+                </Text>
+                <Text style={styles.modalSubtitle}>
+                  {formatDate(currentDate)}
+                </Text>
+              </View>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  onPress={downloadPDF}
+                  style={styles.modalActionBtn}
+                >
+                  <Ionicons
+                    name="cloud-download-outline"
+                    size={20}
+                    color="#6366f1"
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setIsListModalVisible(false)}
+                  style={[
+                    styles.modalActionBtn,
+                    { backgroundColor: "#fef2f2" },
+                  ]}
+                >
+                  <Ionicons name="close" size={20} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Filter tabs */}
+            <View style={styles.filterWrapper}>
+              {["All", "Present", "Absent"].map((tab) => (
+                <TouchableOpacity
+                  key={tab}
+                  style={[
+                    styles.filterTab,
+                    filterType === tab &&
+                      tab === "Present" && { backgroundColor: "#22c55e" },
+                    filterType === tab &&
+                      tab === "Absent" && { backgroundColor: "#ef4444" },
+                    filterType === tab &&
+                      tab === "All" && { backgroundColor: "#6366f1" },
+                  ]}
+                  onPress={() => setFilterType(tab)}
+                >
+                  <Text
+                    style={[
+                      styles.filterTabText,
+                      filterType === tab && { color: "#fff" },
+                    ]}
+                  >
+                    {tab}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Date selector */}
+            <View style={styles.dateSelector}>
+              <TouchableOpacity
+                onPress={() => changeDate(-1)}
+                style={styles.dateArrowBtn}
+              >
+                <Ionicons name="chevron-back" size={18} color="#6366f1" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.dateLabelWrap}
+                onPress={() => setShowCalendar(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="calendar" size={16} color="#6366f1" />
+                <Text style={styles.dateLabel}>{formatDate(currentDate)}</Text>
+                <View style={styles.datePickerHint}>
+                  <Ionicons name="chevron-down" size={12} color="#6366f1" />
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => changeDate(1)}
+                style={styles.dateArrowBtn}
+              >
+                <Ionicons name="chevron-forward" size={18} color="#6366f1" />
+              </TouchableOpacity>
+            </View>
+
+            {/* WEB: Calendar inline */}
+            {Platform.OS === "web" && showCalendar && (
+              <WebInlineCalendar
+                currentDate={currentDate}
+                onClose={() => setShowCalendar(false)}
+                onSelectDate={(date) => {
+                  setCurrentDate(date);
+                  setShowCalendar(false);
+                }}
+              />
+            )}
+
+            {/* List header */}
+            <View style={styles.listHeader}>
+              <Text style={[styles.headerTxt, { flex: 2, textAlign: "left" }]}>
+                Student Name
+              </Text>
+              <Text style={[styles.headerTxt, { flex: 1 }]}>Class</Text>
+              <Text style={[styles.headerTxt, { flex: 1 }]}>N | S</Text>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {filteredList.map((item, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.listRow,
+                    index % 2 === 0 && { backgroundColor: "#fafafa" },
+                  ]}
+                >
+                  <View style={styles.studentAvatarContainer}>
+                    {item.photo ? (
+                      <Image
+                        source={{ uri: item.photo }}
+                        style={styles.studentThumb}
+                      />
+                    ) : (
+                      <View style={styles.placeholderAvatar}>
+                        <Ionicons name="person" size={14} color="#94a3b8" />
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.studentName, { flex: 2 }]}>
+                    {item.name}
+                  </Text>
+                  <Text style={[styles.classTag, { flex: 1 }]}>
+                    {item.is_special ? "N & S" : "Only N"}
+                  </Text>
+                  <View style={styles.statusGroup}>
+                    <Text
+                      style={[
+                        styles.statusChar,
+                        {
+                          color: item.n_status === "P" ? "#22c55e" : "#ef4444",
+                        },
+                      ]}
+                    >
+                      {filterType === "Present"
+                        ? item.n_status === "P"
+                          ? "P"
+                          : ""
+                        : filterType === "Absent"
+                          ? item.n_status === "A"
+                            ? "A"
+                            : ""
+                          : item.n_status}
+                    </Text>
+                    <Text style={styles.statusDivider}>|</Text>
+                    <Text
+                      style={[
+                        styles.statusChar,
+                        {
+                          color: item.s_status === "P" ? "#22c55e" : "#ef4444",
+                        },
+                      ]}
+                    >
+                      {filterType === "Present"
+                        ? item.s_status === "P"
+                          ? "P"
+                          : ""
+                        : filterType === "Absent"
+                          ? item.s_status === "A"
+                            ? "A"
+                            : ""
+                          : item.s_status}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── ATTENDANCE TYPE MODAL ─── */}
       <Modal
         animationType="fade"
-        transparent
+        transparent={true}
         visible={isAttendanceModalVisible}
         onRequestClose={() => setIsAttendanceModalVisible(false)}
       >
@@ -2670,10 +1701,10 @@ export default function Dashboard() {
         </TouchableOpacity>
       </Modal>
 
-      {/* REPORTS MODAL */}
+      {/* ─── REPORTS MODAL ─── */}
       <Modal
         animationType="fade"
-        transparent
+        transparent={true}
         visible={isReportsModalVisible}
         onRequestClose={() => setIsReportsModalVisible(false)}
       >
@@ -2777,8 +1808,13 @@ export default function Dashboard() {
   );
 }
 
+// ============================================================
+// ✅ STYLES — UI UPGRADED (functionality unchanged)
+// ============================================================
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
+
+  // ── Header ──
   headerGradient: {
     paddingTop: 52,
     paddingBottom: 0,
@@ -2892,7 +1928,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     marginTop: 10,
   },
+
+  // ── Scroll ──
   scrollContainer: { paddingHorizontal: 18, paddingBottom: 50 },
+
+  // ── Hero Card ──
   heroCard: {
     borderRadius: 28,
     marginBottom: 6,
@@ -2942,18 +1982,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.09)",
   },
   heroDateText: { color: "#64748b", fontSize: 10, fontWeight: "700" },
-  timeFilterBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(99,102,241,0.25)",
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: "rgba(165,180,252,0.3)",
-  },
-  timeFilterBadgeText: { color: "#a5b4fc", fontSize: 9, fontWeight: "800" },
   heroStatsRow: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -3018,6 +2046,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
+  // ── Section Header ──
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -3026,7 +2056,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: { fontSize: 16, fontWeight: "900", color: "#0f172a" },
-  sectionAccent: { flex: 1, height: 1, backgroundColor: "rgba(15,23,42,0.08)" },
+  sectionAccent: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(15,23,42,0.08)",
+  },
+
+  // ── Action Grid ──
   actionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -3072,6 +2108,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
+  // ── Reports Card ──
   reportsCard: {
     width: "47.5%",
     borderRadius: 22,
@@ -3152,6 +2190,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 2,
   },
+
+  // ── Reports Modal ──
   reportsModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(2,6,23,0.68)",
@@ -3250,6 +2290,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
   },
+
+  // ── Attendance List Modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(2,6,23,0.72)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    padding: 24,
+    height: "87%",
+  },
   modalHandle: {
     width: 38,
     height: 4,
@@ -3257,6 +2311,149 @@ const styles = StyleSheet.create({
     backgroundColor: "#e2e8f0",
     alignSelf: "center",
     marginBottom: 18,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 18,
+  },
+  modalTitle: { fontSize: 20, fontWeight: "900", color: "#0f172a" },
+  modalSubtitle: {
+    color: "#94a3b8",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  modalActions: { flexDirection: "row", gap: 8 },
+  modalActionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: "#ede9fe",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // ── Filter tabs ──
+  filterWrapper: {
+    flexDirection: "row",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    gap: 4,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 12,
+  },
+  filterTabText: { fontSize: 13, fontWeight: "700", color: "#64748b" },
+
+  // ── Date selector ──
+  dateSelector: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 10,
+    marginBottom: 18,
+  },
+  dateArrowBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#ede9fe",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dateLabelWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "#ede9fe",
+    borderRadius: 11,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginHorizontal: 6,
+  },
+  dateLabel: { fontWeight: "800", color: "#1e293b", fontSize: 14 },
+  datePickerHint: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#c7d2fe",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // ── List ──
+  listHeader: {
+    flexDirection: "row",
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: "#f1f5f9",
+    paddingLeft: 52,
+    marginBottom: 4,
+  },
+  headerTxt: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#94a3b8",
+    textAlign: "center",
+    letterSpacing: 0.5,
+  },
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f8fafc",
+    borderRadius: 10,
+    paddingHorizontal: 4,
+  },
+  studentName: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
+  classTag: {
+    fontSize: 10,
+    color: "#64748b",
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  statusGroup: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statusChar: { fontSize: 17, fontWeight: "900" },
+  statusDivider: { marginHorizontal: 6, color: "#e2e8f0", fontSize: 16 },
+  studentAvatarContainer: { width: 46, marginRight: 6, alignItems: "center" },
+  studentThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: "#e2e8f0",
+  },
+  placeholderAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#f1f5f9",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#cbd5e1",
   },
 });
 
