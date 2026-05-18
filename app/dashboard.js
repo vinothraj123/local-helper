@@ -3534,6 +3534,7 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
         gap: 8,
       }}
       onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       <div
@@ -3596,6 +3597,8 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
             value={h}
             onChange={handleH}
             placeholder="--"
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             style={inputStyle}
           />
         </div>
@@ -3634,6 +3637,8 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
             value={m}
             onChange={handleM}
             placeholder="--"
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             style={inputStyle}
           />
         </div>
@@ -3643,6 +3648,7 @@ function WebTimePicker({ label, color, time, onChangeTime }) {
           <button
             key={min}
             onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onChangeTime(`${h || "06"}:${min}`);
@@ -3761,7 +3767,7 @@ function TimeRangePickerModal({
       <View style={trp.divider} />
 
       {/* Presets */}
-      <Text style={trp.sectionLabel}>QUICK PRES</Text>
+      <Text style={trp.sectionLabel}>Q</Text>
       <View style={trp.presetRow}>
         {presets.map((p) => {
           const active = localFrom === p.from && localTo === p.to;
@@ -3889,6 +3895,9 @@ function TimeRangePickerModal({
   // ── WEB ──────────────────────────────────────────────────
   if (Platform.OS === "web") {
     if (!visible) return null;
+    const handleBackdrop = (e) => {
+      if (e.target === e.currentTarget) onClose();
+    };
     return (
       <div
         style={{
@@ -3900,7 +3909,8 @@ function TimeRangePickerModal({
           alignItems: "flex-end",
           justifyContent: "center",
         }}
-        onMouseDown={onClose}
+        onMouseDown={handleBackdrop}
+        onTouchStart={handleBackdrop}
       >
         <div
           style={{
@@ -3911,6 +3921,7 @@ function TimeRangePickerModal({
             overflow: "hidden",
           }}
           onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
           <SheetContent />
